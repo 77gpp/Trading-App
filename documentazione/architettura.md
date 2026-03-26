@@ -1,4 +1,4 @@
-# ARCHITETTURA DEL SISTEMA: Trading Multi-Agent Desk (V5)
+# ARCHITETTURA DEL SISTEMA: Trading Multi-Agent Desk (V5 - Agno v2.x)
 
 Questa documentazione descrive il sistema di analisi professionale basato sul framework **Agno**, configurabile tramite un modulo di impostazioni centralizzato.
 
@@ -86,8 +86,8 @@ graph TD
 
 L'architettura V5 è interamente "diretta" dal file **[settings.py](file:///Users/gpp/Programmazione/Trading/In%20Lavorazione/Trading_AI_App%20v2/settings.py)**. Questo permette all'utente di avere il controllo totale senza modificare il codice logico:
 
-*   **Scelta degli LLM**: È possibile assegnare modelli diversi a ogni componente (es. `gemini-1.5-pro` per la strategia macro, `gemini-1.5-flash` per gli specialisti tecnici).
-*   **Gestione Storage**: Permette di decidere se salvare la memoria delle analisi in **Locale** (default SQLite sul Mac) o in Remoto.
+*   **Scelta degli LLM**: È possibile assegnare modelli diversi a ogni componente (es. `gemini-2.0-flash` come standard economico e veloce, o `gemini-1.5-pro` per analisi profonde).
+*   **Gestione Storage**: Permette di decidere se salvare la memoria delle analisi in **Locale** (SQLite sul Mac) o in Remoto.
 *   **Gestione Librerie**: Definisce i percorsi per i libri (`data/books`) e le skill tecniche.
 
 ---
@@ -116,7 +116,21 @@ A differenza dei classici sistemi RAG, la V5 mantiene la ricerca file nativa di 
 
 ## 4. Tecnologie e Persistenza
 
-*   **Agno SDK**: Gestisce la logica degli agenti, la memoria della sessione e l'orchestrazione del Team.
-*   **SQLite**: Database locale utilizzato per la conservazione gratuita e privata della "storia" del trading desk.
-*   **Gemini 1.5 Flash/Pro**: I motori di ragionamento del sistema.
+*   **Agno SDK**: Gestisce la logica degli agenti (v2.x), la memoria della sessione e l'orchestrazione del Team.
+*   **SQLite**: Database locale (`trading_system.db`) utilizzato per la persistenza privata.
+    *   `macro_expert_session`: Storico analisi macro.
+    *   `technical_team_session`: Cronologia coordinamento team tecnico.
+*   **Gemini 2.0 Flash / 1.5 Pro**: I motori di ragionamento del sistema.
 *   **Loguru**: Monitoraggio in tempo reale del "pensiero" degli agenti.
+
+---
+
+## 5. Guida Operativa (Quick Start)
+
+### Avvio e Utilizzo
+1.  **Analisi Asset**: Esegui `python3 app.py` per avviare il desk.
+2.  **Configurazione**: Modifica `app.py` per cambiare il ticker (default "XAU/USD") e `settings.py` per i modelli LLM.
+
+### Risoluzione Problemi Comune
+*   **Errore Quota 429 (Resource Exhausted)**: Significa che hai esaurito i crediti gratuiti giornalieri di Google. Attendi il reset automatico (solitamente richiede pochi minuti o fino al giorno successivo).
+*   **Lentezza Git**: Se il commit è lento, verifica che `storage/` e `data/` siano correttamente nel `.gitignore`.
