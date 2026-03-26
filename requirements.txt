@@ -1,0 +1,10 @@
+pandas>=2.0.0
+numpy>=1.24.0
+loguru>=0.7.0
+# Librerie future per lo scaricamento dati
+yfinance>=0.2.0
+
+# SDK e Env per Gemini Agentic File Search
+google-generativeai>=0.4.0
+python-dotenv>=1.0.0
+pypdf>=4.0.0
