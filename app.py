@@ -7,28 +7,27 @@ from agents.supervisor_agent import SupervisorAgent
 
 def main():
     print("="*60)
-    print(" 🚀 AVVIO TRADING AI APP - SISTEMA AGENTIC (Skills + Gemini File API) 🚀")
+    print(" 🚀 AVVIO TRADING AI APP - CONFIGURABLE AGNO DESK (V5) 🚀")
     print("="*60)
     
-    # 1. Acquisizione Dati (Mock o Futuro API Reale come YFinance)
-    ticker = "APPLE (AAPL)"
+    # 1. Acquisizione Dati Multi-Timeframe (1h, 4h, 1d)
+    ticker = "XAU/USD"
     try:
-        df_mercato = DataFetcher.get_historical_data(ticker, period_days=300)
+        data_mtf = DataFetcher.get_mtf_data(ticker, days=100)
     except Exception as e:
-        logger.error(f"Errore nello scaricamento dei dati: {e}")
+        logger.error(f"Errore nello scaricamento dei dati MTF: {e}")
         sys.exit(1)
         
-    # 2. Inizializzazione del Cervello (L'Agente Orchestratore)
+    # 2. Inizializzazione del Cervello (Orchestratore Dinamico V5)
     supervisore = SupervisorAgent()
     
-    # 3. L'Orchestratore esegue l'analisi
-    # In futuro utilizzerà le nuove Skill estratte via Agentic File Search
-    report_definitivo = supervisore.analizza_asset(df_mercato, ticker, autore="joe_ross")
+    # 3. L'Orchestratore esegue l'analisi (Macro + Technical Team)
+    report_definitivo = supervisore.analizza_asset(data_mtf, ticker)
     
-    # 4. Output a schermo (Futuro: output sulla Web App React/HTML)
+    # 4. Output del Report Professionale
     print(report_definitivo)
     
-    print("\n[APP] Analisi completata con successo. Attesa nuovo input...")
+    print("\n[APP] Analisi Agno V5 (Configurabile) completata con successo.")
 
 if __name__ == "__main__":
     main()
