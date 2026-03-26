@@ -13,6 +13,8 @@ graph TD
     subgraph "FASE 1: MACRO STRATEGY (Agno Agent)"
         Sup --> Macro["🌎 Agno Macro Expert"]
         MacroLib["📚 Macro Library"] --> Macro
+        Web["📰 Web News (DuckDuckGo)"] --> Macro
+        Mkt["📈 Market Data (YFinance)"] --> Macro
         Macro -->|"Macro Sentiment"| Sup
     end
 
@@ -21,8 +23,9 @@ graph TD
         Team --> Pat["🕵️ Pattern Specialist"]
         Team --> Trd["💹 Trend Specialist"]
         Team --> SR["🧱 SR Specialist"]
-        Team --> Vol["🧪 Volume Specialist"]
+        Team --> Vol["🧪 Volume Specialist (VSA/Wyckoff)"]
         SkillLib["📚 Skills Library"] --> Team
+        Vol -->|"Volume Validation (Mandatory)"| Team
     end
 
     subgraph "FASE 3: STORAGE & MEMORY"
@@ -31,6 +34,15 @@ graph TD
 
     Sup --> Final["🚀 Verdetto Finale (BUY/SELL/WAIT)"]
 ```
+
+## 2. Sistema di Librerie (Memory Layers)
+
+Il sistema utilizza tre livelli di conoscenza per garantire analisi basate su fonti autorevoli:
+
+*   **📚 Libreria Libri (`data/books/`)**: Contiene i manuali originali in PDF (Joe Ross, Steve Nison, ecc.). È la sorgente "grezza" della conoscenza.
+*   **🧠 Libreria delle Skill (`skills_library/`)**: Contiene file Markdown estratti dai libri. Sono regole di trading "pronte all'uso" che gli agenti tecnici consultano per identificare pattern e trend.
+*   **🌍 Libreria Macro (`macro_library/`)**: Contiene i fondamentali economici (es. `macro_fundamentals.md`). È il manuale di riferimento per l'Agente Macro per interpretare i cicli di mercato.
+*   **🏆 Manuale Best Practice (`documentazione/best_practice.md`)**: Contiene gli approcci dei trader professionisti. Serve da **Benchmark** per validare la qualità e la coerenza delle analisi prodotte dal sistema.
 
 ### 1.2 Schema a Blocchi Logico V5 (Agno Powered)
 
@@ -92,21 +104,45 @@ L'architettura V5 è interamente "diretta" dal file **[settings.py](file:///User
 
 ---
 
+## 3. Logica di Comando e Gerarchia Decisionale
+
+Il sistema non è una semplice sequenza di analisi, ma una **Gerarchia di Comando** dove l'Agente Macro funge da "Direttore Strategico":
+
+1.  **Analisi di Contesto (Macro)**: L'Agente Macro raccoglie News, Prezzi e Fondamentali per definire il *Bias* (Bullish/Bearish).
+2.  **Emissione del Comando**: Il Macro emette un "Ordine Strategico" che include obbligatoriamente il comando di **Deep Volume Scan** (Analisi Volumetrica Profonda).
+3.  **Esecuzione Specialisti (Tech Team)**: Gli specialisti (Pattern, Trend, SR) eseguono i loro calcoli, ma devono farlo all'interno del perimetro deciso dal Macro.
+4.  **Validazione Volumetrica (VSA/Wyckoff)**: Lo specialista dei volumi ha il ruolo di "Validatore Finale". Se il pattern tecnico suggerito dagli altri contrasta con lo sforzo/risultato dei volumi, il sistema declassa l'operazione ad "Alto Rischio".
+5.  **Sintesi Finale**: Il Capo Desk unisce i pezzi dando peso prioritario alla convalida volumetrica.
+
+---
+
 ## 3. Ruoli degli Agenti (Agno Framework)
 
 ### 🌎 Agno Macro Expert
 *   **Modello**: Dinamico (da settings).
-*   **Funzione**: Analizza i fondamentali macroeconomici utilizzando la **Gemini File Search**. Interroga il file `macro_fundamentals.md` per estrarre sentiment su DXY, inflazione e cicli.
-*   **Memoria**: Salva le conclusioni nel database SQLite per coerenza futura.
+*   **Funzioni**:
+    1.  **Analisi Fondamentale**: Interroga la libreria macro (`macro_fundamentals.md`) per estrarre sentiment su DXY e inflazione.
+    2.  **Live News**: Equipaggiato con **DuckDuckGoTools**, effettua ricerche sul web (Sorgente: *DuckDuckGo Search*) per catturare news dell'ultima ora sull'asset analizzato.
+    3.  **Dati Quantitativi**: Grazie a **YFinanceTools**, ottiene prezzi, volumi e variazioni percentuali istantanee (Sorgente: *Yahoo Finance*, ticker `GC=F` per l'Oro).
+*   **Memoria**: Salva le conclusioni nel database SQLite per garantire coerenza tra diverse sessioni.
+
+### 📊 Riassunto Strumenti e Sorgenti Dati
+| Agente | Strumento (Tool) | Sorgente Dati (Data Source) | Contenuto |
+| :--- | :--- | :--- | :--- |
+| **Macro Expert** | `DuckDuckGoTools` | Web (Motore di Ricerca) | Notizie, Sentiment, Eventi |
+| **Macro Expert** | `YFinanceTools` | Yahoo Finance | Prezzi Real-Time, Volumi, Ticker |
+| **Macro Expert** | `Gemini Search` | Libreria Macro Locale | Fondamentali Economici, Bias |
+| **Tech Team** | `Agentic Search` | Skills Library & Books | Regole di Trading, Pattern |
 
 ### 📑 Agno Technical Desk (Team)
 *   **Modello**: Dinamico (da settings).
-*   **Struttura**: Un `Team` di Agno composto da 4 specialisti:
+*   **Struttura**: Un `Team` di Agno composto da 4 specialisti coordinati:
     1.  **Pattern Specialist**: Rilevamento candele e formazioni grafiche.
     2.  **Trend Specialist**: Analisi dello slancio e dei trend primari.
     3.  **SR Specialist**: Identificazione di Supporti, Resistenze e Fibonacci.
-    4.  **Volume Specialist**: Analisi VSA e Wyckoff.
-*   **Logica**: Il Team agisce come un'unica entità che interroga gli esperti e sintetizza i loro report in base al "Macro Sentiment" ricevuto.
+    4.  **Volume Specialist (The Validator)**: Analisi VSA e Wyckoff ultra-approfondita.
+*   **Logica di Pilotaggio**: Il Team riceve dal Macro Expert non solo una direzione, ma un **obbligo di convalida**. Il Volume Specialist agisce come "barriera": convalida o smentisce la forza dei pattern grafici analizzando se il movimento dei prezzi è sostenuto da capitali reali.
+*   **Metodologie**: Wyckoff (Climax, Accumulazione, Distribuzione) e VSA (No Demand/Supply, Bag Holding).
 
 ### 📖 Agentic File Search (V5)
 A differenza dei classici sistemi RAG, la V5 mantiene la ricerca file nativa di Gemini:

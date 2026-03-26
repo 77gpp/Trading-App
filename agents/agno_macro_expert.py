@@ -2,6 +2,8 @@ import os
 from agno.agent import Agent
 from agno.models.google import Gemini
 from agno.db.sqlite import SqliteDb
+from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.tools.yfinance import YFinanceTools
 from loguru import logger
 import settings
 
@@ -34,11 +36,15 @@ class AgnoMacroExpert:
         self.agent = Agent(
             name="Macro Strategist",
             model=Gemini(id=self.model_id, api_key=self.api_key),
-            description="Sei un Senior Macro Strategist. Hai accesso ai fondamentali macro del sistema.",
+            description="Sei un Senior Macro Strategist. Hai accesso ai fondamentali macro, alle news web e ai dati finanziari real-time.",
+            tools=[DuckDuckGoTools(), YFinanceTools(enable_stock_price=True, enable_analyst_recommendations=True, enable_company_info=False)],
             instructions=[
-                "Analizza lo scenario globale basandoti sui fondamentali forniti nel contesto.",
-                f"CONTESTO MACRO ESTRATTO DALLA LIBRERIA:\n{content[:5000]}...", # Limitiamo per sicurezza nel prompt, ma Gemini regge molto di più
-                "Segui un ragionamento a 3 step: Analisi Indicatori -> Analisi Dollaro -> Sintesi Sentiment.",
+                "Analizza lo scenario globale basandoti sui fondamentali forniti nel contesto, sulle news web e sui dati finanziari real-time.",
+                f"CONTESTO MACRO ESTRATTO DALLA LIBRERIA:\n{content[:5000]}...",
+                "Utilizza il tool DuckDuckGo per cercare notizie recenti sull'asset richiesto (es. 'Gold news today').",
+                "Utilizza il tool YFinance per ottenere il prezzo attuale e la tendenza dell'asset (es. ticker 'GC=F' per l'Oro).",
+                "IMPONI SEMPRE un'analisi volumetrica approfondita (VSA/Wyckoff) come filtro primario per il Team Tecnico.",
+                "Segui un ragionamento a 4 step: Prezzo/Volumi -> News/Dati -> Analisi Indicatori -> Sintesi Sentiment.",
                 "Fornisci sempre un bias chiaro: Risk-On (Bullish) o Risk-Off (Bearish).",
             ],
             db=self.storage,

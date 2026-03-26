@@ -57,7 +57,13 @@ class AgnoTechnicalTeam:
         self.volume_expert = Agent(
             name="Volume Analyst",
             model=Gemini(id=self.model_specialists, api_key=self.api_key),
-            description="Maestro di VSA e Wyckoff.",
+            description="Maestro di VSA e Wyckoff. Analizza lo Sforzo vs Risultato.",
+            instructions=[
+                "Esegui un'analisi volumetrica profonda usando VSA (Volume Spread Analysis).",
+                "Cerca segnali di Accumulazione e Distribuzione di Wyckoff.",
+                "Valuta Sforzo vs Risultato: se il volume è alto ma il prezzo non si muove, c'è assorbimento?",
+                "Identifica Climax, No Demand, No Supply e Test dei minimi/massimi.",
+            ],
         )
         
         # 4. Creazione Team Desk (Capo Team)
@@ -65,11 +71,12 @@ class AgnoTechnicalTeam:
             name="Technical Trading Desk",
             members=[self.pattern_expert, self.trend_expert, self.sr_expert, self.volume_expert],
             model=Gemini(id=self.model_desk, api_key=self.api_key),
-            description="Sei il Capo del Trading Desk. Coordini gli esperti tecnici.",
+            description="Sei il Capo del Trading Desk. Coordini gli esperti tecnici con focus primario sui VOLUMI.",
             instructions=[
                 "Ricevi i dati OHLCV e interroga gli specialisti tecnici.",
                 "Usa il Macro Sentiment ricevuto come bussola direzionale.",
-                "Fornisci il verdetto finale con Ingresso, Stop e Target.",
+                "L'Analisi Volumetrica del 'Volume Analyst' è il filtro finale: se i volumi non confermano il trend, segnalalo come RISCHIO ELEVATO.",
+                "Fornisci il verdetto finale con Ingresso, Stop e Target, giustificandolo con la convalida volumetrica.",
             ],
             db=self.storage,
             num_history_messages=3,
