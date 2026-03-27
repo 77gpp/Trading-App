@@ -144,29 +144,38 @@ Il sistema non è una semplice sequenza di analisi, ma una **Gerarchia di Comand
 *   **Logica di Pilotaggio**: Il Team riceve dal Macro Expert non solo una direzione, ma un **obbligo di convalida**. Il Volume Specialist agisce come "barriera": convalida o smentisce la forza dei pattern grafici analizzando se il movimento dei prezzi è sostenuto da capitali reali.
 *   **Metodologie**: Wyckoff (Climax, Accumulazione, Distribuzione) e VSA (No Demand/Supply, Bag Holding).
 
-### 📖 Agentic File Search (V5)
+### 📖 Agentic File Search & Hybrid Librarian (V5.1)
 A differenza dei classici sistemi RAG, la V5 mantiene la ricerca file nativa di Gemini:
-*   I libri e le skill vengono "letti" direttamente dai modelli Gemini tramite le loro API, garantendo una precisione superiore e citazioni dirette dei testi originali senza database vettoriali esterni costosi.
+*   **Gemini (The Librarian)**: Gestisce la ricerca intelligente nei PDF tramite le sue API, garantendo precisione superiore e citazioni dirette.
+*   **Qwen/Groq (The Analyst)**: Riceve i dati estratti da Gemini e coordina il team tecnico con velocità e logica superiori.
 
 ---
 
-## 4. Tecnologie e Persistenza
+## 4. Supporto Multi-Modello e Configurazione Ibrida
 
-*   **Agno SDK**: Gestisce la logica degli agenti (v2.x), la memoria della sessione e l'orchestrazione del Team.
-*   **SQLite**: Database locale (`trading_system.db`) utilizzato per la persistenza privata.
-    *   `macro_expert_session`: Storico analisi macro.
-    *   `technical_team_session`: Cronologia coordinamento team tecnico.
-*   **Gemini 2.0 Flash / 1.5 Pro**: I motori di ragionamento del sistema.
+Grazie al file **settings.py**, l'utente può scegliere dinamicamente quale "cervello" assegnare a ogni fase o componente:
+*   **Analisi Macro**: Configurabile (es. Qwen 3 su Groq).
+*   **Ricerca Conoscenza**: Delegata a Gemini (2.0 Flash) per la navigazione profonda dei libri.
+*   **Analisi Tecnica**: Affidata a Qwen per le sue capacità nel function calling.
+
+---
+
+## 5. Tecnologie e Persistenza
+
+*   **Agno SDK**: Core orchestrator (v2.x) per la logica multi-agente.
+*   **Groq LPU**: Infrastruttura per l'inferenza ultra-veloce di Qwen.
+*   **SQLite**: Database locale (`trading_system.db`) per la persistenza privata.
+*   **Gemini & Qwen**: I motori di ragionamento combinati.
 *   **Loguru**: Monitoraggio in tempo reale del "pensiero" degli agenti.
 
 ---
 
-## 5. Guida Operativa (Quick Start)
+## 6. Guida Operativa (Quick Start)
 
 ### Avvio e Utilizzo
 1.  **Analisi Asset**: Esegui `python3 app.py` per avviare il desk.
-2.  **Configurazione**: Modifica `app.py` per cambiare il ticker (default "XAU/USD") e `settings.py` per i modelli LLM.
+2.  **Configurazione**: Modifica `settings.py` per scegliere il provider (`LLM_PROVIDER`) e i modelli desiderati.
 
 ### Risoluzione Problemi Comune
-*   **Errore Quota 429 (Resource Exhausted)**: Significa che hai esaurito i crediti gratuiti giornalieri di Google. Attendi il reset automatico (solitamente richiede pochi minuti o fino al giorno successivo).
+*   **Errore Quota 429 / TPM (Groq/Google)**: Se si superano i limiti di token, il sistema attende automaticamente tramite i delay sequenziali impostati. Non vengono effettuati tagli al contesto per preservare l'integrità delle informazioni strategiche provenienti dai libri.
 *   **Lentezza Git**: Se il commit è lento, verifica che `storage/` e `data/` siano correttamente nel `.gitignore`.
