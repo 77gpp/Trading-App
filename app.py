@@ -11,7 +11,7 @@ def main():
     print("="*60)
     
     # 1. Acquisizione Dati Multi-Timeframe (1h, 4h, 1d)
-    ticker = "XAU/USD"
+    ticker = "GC=F"
     try:
         data_mtf = DataFetcher.get_mtf_data(ticker, days=100)
     except Exception as e:

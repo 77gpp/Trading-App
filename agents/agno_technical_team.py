@@ -67,9 +67,18 @@ class AgnoTechnicalTeam:
         )
         
         # 4. Creazione Team Desk (Capo Team)
+        active_members = []
+        if settings.AGENT_PATTERN_ENABLED: active_members.append(self.pattern_expert)
+        if settings.AGENT_TREND_ENABLED: active_members.append(self.trend_expert)
+        if settings.AGENT_SR_ENABLED: active_members.append(self.sr_expert)
+        if settings.AGENT_VOLUME_ENABLED: active_members.append(self.volume_expert)
+        
+        if not active_members:
+            logger.warning("[AGNO TEAM] Attenzione: Nessun agente tecnico attivo in settings.py!")
+
         self.team = Team(
             name="Technical Trading Desk",
-            members=[self.pattern_expert, self.trend_expert, self.sr_expert, self.volume_expert],
+            members=active_members,
             model=Gemini(id=self.model_desk, api_key=self.api_key),
             description="Sei il Capo del Trading Desk. Coordini gli esperti tecnici con focus primario sui VOLUMI.",
             instructions=[
@@ -84,8 +93,30 @@ class AgnoTechnicalTeam:
         )
         logger.success(f"[AGNO] Team Tecnico pronto con modelli: {self.model_desk}/{self.model_specialists}")
 
+    def analizza_specialista(self, nome_specialista, data_summary, macro_sentiment="Neutrale"):
+        """Esegue l'analisi di un singolo esperto (Modalità Sequenziale per risparmio quota)."""
+        logger.info(f"[AGNO TEAM] Interrogazione specialistica: {nome_specialista}")
+        
+        # Cerchiamo l'agente corretto nel team
+        agente = next((m for m in self.team.members if m.name == nome_specialista), None)
+        if not agente:
+            return f"Errore: Specialista {nome_specialista} non trovato."
+
+        query = f"""
+        DATI MERCATO:
+        {data_summary}
+        
+        SENTIMENT MACRO DA RISPETTARE:
+        {macro_sentiment}
+        
+        Esegui la tua analisi tecnica specifica come {nome_specialista}.
+        """
+        
+        response = agente.run(query)
+        return response.content
+
     def analizza_asset(self, data_summary, macro_sentiment="Neutrale"):
-        """Esegue l'analisi completa tramite il team di agenti."""
+        # Metodo originale mantenuto per compatibilità
         logger.info(f"[AGNO TEAM] Avvio analisi con Sentiment Macro: {macro_sentiment}")
         
         query = f"""

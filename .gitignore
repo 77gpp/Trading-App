@@ -21,3 +21,4 @@ venv/
 # Trading Books & Data
 data/books/
 *.pdf
+storage/memory/trading_system.db
