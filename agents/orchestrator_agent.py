@@ -1,9 +1,10 @@
 import os
 import asyncio
-import google.generativeai as genai
 from loguru import logger
+from agno.agent import Agent
 
 # Import dei componenti necessari
+from agents.model_factory import get_model
 from agents.context_expander_agent import ContextExpanderAgent
 from agents.specialists.pattern_agent import PatternAgent
 from agents.specialists.trend_agent import TrendAgent
@@ -20,23 +21,32 @@ class OrchestratorAgent:
     4. Sincronizzare gli specialisti in asyncio.
     """
     
-    def __init__(self, api_key):
-        self.api_key = api_key
-        if api_key:
-            genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel("gemini-1.5-flash")
+    def __init__(self, api_key=None):
+        # Usiamo il model_factory per ottenere il modello corretto (Qwen o Gemini)
+        self.model = get_model()
+        
+        # Inizializziamo l'Agente Agno per il routing
+        self.router_agent = Agent(
+            model=self.model,
+            description="Esperto in routing di trading skill.",
+            instructions=[
+                "Analizza il profilo MTF e il contesto macro fornito.",
+                "Seleziona le 3 skill (file .md) più rilevanti dalla lista fornita.",
+                "Rispondi in italiano."
+            ]
+        )
         
         # Inizializzazione specialisti e strumenti
         self.expander = ContextExpanderAgent()
-        self.pattern_expert = PatternAgent(api_key)
-        self.trend_expert = TrendAgent(api_key)
-        self.sr_expert = SRAgent(api_key)
-        self.volume_expert = VolumeAgent(api_key)
+        self.pattern_expert = PatternAgent()
+        self.trend_expert = TrendAgent()
+        self.sr_expert = SRAgent()
+        self.volume_expert = VolumeAgent()
         self.library_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "skills_library")
 
     async def _skill_router(self, mtf_profile, macro_context):
         """Seleziona le skill più rilevanti analizzando i file .md (Semantic Router)."""
-        logger.info("[ORCHESTRATOR] Routing delle skill più rilevanti...")
+        logger.info("[ORCHESTRATOR] Routing delle skill più rilevanti con Qwen/Groq...")
         
         if not os.path.exists(self.library_dir):
             return "Libreria non trovata."
@@ -59,8 +69,9 @@ class OrchestratorAgent:
         """
         
         try:
-            response = await self.model.generate_content_async(prompt)
-            return response.text
+            # Esecuzione tramite Agno Agent
+            response = self.router_agent.run(prompt)
+            return response.content
         except Exception as e:
             logger.error(f"Errore Router: {e}")
             return "Errore nel routing delle skill."
@@ -73,7 +84,6 @@ class OrchestratorAgent:
         relevant_skills = await self._skill_router(mtf_profile, macro_context)
         
         # 2. Esecuzione Parallela (Analyst Executor Agents)
-        # Usiamo i dati 1h per gli specialisti (ultime 50 candele)
         data_summary_1h = data_mtf["1h"].tail(50).to_string()
         
         tasks = [
@@ -86,5 +96,5 @@ class OrchestratorAgent:
         # Sincronizzazione asyncio
         results = await asyncio.gather(*tasks)
         
-        logger.success("[ORCHESTRATOR] Analisi di tutti gli specialisti completata.")
+        logger.success("[ORCHESTRATOR] Analisi di tutti gli specialisti completata con Qwen/Groq.")
         return results

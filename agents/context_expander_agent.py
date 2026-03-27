@@ -1,56 +1,82 @@
 import os
-import pypdf
+import google.generativeai as genai
 from loguru import logger
+import settings
 
 class ContextExpanderAgent:
     """
-    Agente che espande il contesto leggendo le pagine dei PDF originali.
-    Mappa i nomi abbreviati dei libri sui file fisici in data/books/.
+    Agente di Ricerca Intelligente nei Libri (Gemini Agentic File Search).
+    Carica i PDF su Google Cloud e permette ricerche semantiche veloci.
     """
     
-    def __init__(self, books_dir="data/books"):
-        self.books_dir = books_dir
-        # Mappatura tra nomi nelle skill MD e file PDF reali
-        self.book_map = {
-            "Daytrading": "Joe Ross - Daytrading (Merged Clean).pdf",
-            "Encyclopedia Of Chart Patterns": "Encyclopedia Of Chart Patterns, 2nd Edition.pdf",
-            "Japanese Candlestick Charting": "Japanese Candlestick Charting Techniques 2nd edition 2001.pdf",
-            "Long-Term Secrets": "Long-Term Secrets to Short-Term Trading 1999.pdf",
-            "Murphy": "Murphy - Analisi Tecnica Dei Mercati Finanziari.pdf",
-            "Multiple Timeframes": "Technical Analysis Using Multiple Timeframes - Understand Market Structure and Profit from Trend Alignment.pdf"
-        }
-
-    def expand_context(self, book_name, page_number):
-        """Estrae il testo di una pagina specifica da un PDF."""
-        logger.info(f"[CONTEXT EXPANDER] Ricerca pagina {page_number} del libro '{book_name}'...")
+    def __init__(self):
+        self.api_key = settings.GEMINI_API_KEY
+        self.model_id = settings.MODEL_KNOWLEDGE_SEARCH
+        self.books_dir = settings.BOOKS_DIR
         
-        # Risoluzione nome file
-        pdf_name = None
-        for key in self.book_map:
-            if key.lower() in book_name.lower():
-                pdf_name = self.book_map[key]
-                break
+        if self.api_key:
+            genai.configure(api_key=self.api_key)
         
-        if not pdf_name:
-            logger.warning(f"Libro '{book_name}' non trovato nella mappa.")
-            return f"Contesto non disponibile per {book_name}."
+        self.model = genai.GenerativeModel(self.model_id)
+        self.uploaded_files = {} # Cache locale dei file caricati
 
-        pdf_path = os.path.join(self.books_dir, pdf_name)
-        if not os.path.exists(pdf_path):
-            logger.error(f"File PDF non trovato: {pdf_path}")
-            return f"Errore: File PDF {pdf_name} non trovato."
+    def _sync_books(self):
+        """Sincronizza i libri locali con Gemini File API."""
+        logger.info("[KNOWLEDGE] Mirroring dei libri su Gemini File API...")
+        
+        if not os.path.exists(self.books_dir):
+            logger.error(f"Cartella libri non trovata: {self.books_dir}")
+            return
 
-        try:
-            reader = pypdf.PdfReader(pdf_path)
-            # pypdf usa indici 0-based, le pagine dei libri sono 1-based (solitamente)
-            page_idx = int(page_number) - 1
-            if page_idx < 0 or page_idx >= len(reader.pages):
-                return f"Pagina {page_number} fuori intervallo."
+        # Recuperiamo la lista dei file già presenti su Gemini per evitare duplicati
+        existing_remote_files = {f.display_name: f for f in genai.list_files()}
+        
+        for filename in os.listdir(self.books_dir):
+            if filename.endswith(".pdf"):
+                path = os.path.join(self.books_dir, filename)
+                
+                if filename in existing_remote_files:
+                    logger.debug(f"Libro '{filename}' già presente su Gemini.")
+                    self.uploaded_files[filename] = existing_remote_files[filename]
+                else:
+                    logger.info(f"Caricamento nuovo libro: {filename}...")
+                    g_file = genai.upload_file(path=path, display_name=filename)
+                    self.uploaded_files[filename] = g_file
+        
+        logger.success(f"[KNOWLEDGE] {len(self.uploaded_files)} libri pronti per la ricerca.")
+
+    def search_knowledge(self, query):
+        """Esegue una ricerca semantica nei libri caricati."""
+        logger.info(f"[KNOWLEDGE] Ricerca intelligente nei libri: '{query}'...")
+        
+        if not self.uploaded_files:
+            self._sync_books()
             
-            page = reader.pages[page_idx]
-            text = page.extract_text()
-            logger.success(f"[CONTEXT EXPANDER] Pagina {page_number} estratta con successo ({len(text)} caratteri).")
-            return text
+        if not self.uploaded_files:
+            return "Nessun libro caricato."
+
+        # Prendiamo i primi 5 file per non superare i limiti di contesto se necessario
+        files_to_use = list(self.uploaded_files.values())[:5]
+        
+        prompt = f"""
+        SEI UN ESPERTO DI TRADING CHE ACCEDE ALLA SUA LIBRERIA PERSONALE.
+        Cerca nei documenti allegati la risposta alla seguente domanda:
+        
+        DOMANDA: {query}
+        
+        REGOLE:
+        1. Cita il nome del libro da cui provengono le informazioni.
+        2. Sii sintetico ma tecnico.
+        3. Se non trovi nulla di specifico, dì che la libreria non contiene riferimenti a questo tema.
+        
+        Rispondi in italiano.
+        """
+        
+        try:
+            # Invio dei file insieme al prompt (Agentic File Search)
+            contents = files_to_use + [prompt]
+            response = self.model.generate_content(contents)
+            return response.text
         except Exception as e:
-            logger.error(f"Errore estrazione PDF: {e}")
-            return f"Errore durante la lettura del PDF: {e}"
+            logger.error(f"Errore ricerca Gemini: {e}")
+            return f"Errore durante la ricerca nei libri: {e}"

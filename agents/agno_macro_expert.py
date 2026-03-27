@@ -26,16 +26,19 @@ class AgnoMacroExpert:
             logger.info(f"[AGNO MACRO] Usando storage locale: {self.db_path}")
 
         # 2. Inizializzazione Agente
-        # Usiamo le istruzioni come 'Base di Conoscenza' se il file è piccolo, 
-        # o carichiamo il file come contesto per l'Agentic File Search.
+        from agents.model_factory import get_model
+        
         content = ""
         if os.path.exists(self.macro_file):
             with open(self.macro_file, "r") as f:
                 content = f.read()
         
+        # Otteniamo il modello (Groq/Qwen o Gemini)
+        llm_model = get_model(self.model_id)
+        
         self.agent = Agent(
             name="Macro Strategist",
-            model=Gemini(id=self.model_id, api_key=self.api_key),
+            model=llm_model,
             description="Sei un Senior Macro Strategist. Hai accesso ai fondamentali macro, alle news web e ai dati finanziari real-time.",
             tools=[DuckDuckGoTools(), YFinanceTools(enable_stock_price=True, enable_analyst_recommendations=True, enable_company_info=False)],
             instructions=[
@@ -51,7 +54,7 @@ class AgnoMacroExpert:
             num_history_messages=3,
             markdown=True,
         )
-        logger.success(f"[AGNO] Agente Macro Expert pronto con modello: {self.model_id}")
+        logger.success(f"[AGNO] Agente Macro Expert pronto con modello: {llm_model.id}")
 
     def analizza(self, query="Analizza l'attuale scenario globale"):
         """Esegue l'analisi macro strategica."""

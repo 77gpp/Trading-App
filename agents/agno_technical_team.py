@@ -34,29 +34,35 @@ class AgnoTechnicalTeam:
                         all_skills += f"\n--- {f} ---\n{f_in.read()[:2000]}\n"
         
         # 3. Definizione Agenti Specialisti
+        from agents.model_factory import get_model
+        
+        # Carichiamo i modelli tramite factory (Qwen/Groq o Gemini)
+        llm_specialists = get_model(self.model_specialists)
+        llm_desk = get_model(self.model_desk)
+        
         self.pattern_expert = Agent(
             name="Pattern Analyst",
-            model=Gemini(id=self.model_specialists, api_key=self.api_key),
+            model=llm_specialists,
             description="Esperto in Candlestick e Chart Patterns.",
             instructions=[f"ANALIZZA PATTERN USANDO QUESTE SKILL:\n{all_skills[:3000]}"],
         )
         
         self.trend_expert = Agent(
             name="Trend Analyst",
-            model=Gemini(id=self.model_specialists, api_key=self.api_key),
+            model=llm_specialists,
             description="Esperto in Trend e Momentum.",
             instructions=[f"ANALIZZA TREND USANDO QUESTE SKILL:\n{all_skills[:3000]}"],
         )
         
         self.sr_expert = Agent(
             name="SR Analyst",
-            model=Gemini(id=self.model_specialists, api_key=self.api_key),
+            model=llm_specialists,
             description="Esperto in Supporti e Resistenze.",
         )
         
         self.volume_expert = Agent(
             name="Volume Analyst",
-            model=Gemini(id=self.model_specialists, api_key=self.api_key),
+            model=llm_specialists,
             description="Maestro di VSA e Wyckoff. Analizza lo Sforzo vs Risultato.",
             instructions=[
                 "Esegui un'analisi volumetrica profonda usando VSA (Volume Spread Analysis).",
@@ -75,11 +81,11 @@ class AgnoTechnicalTeam:
         
         if not active_members:
             logger.warning("[AGNO TEAM] Attenzione: Nessun agente tecnico attivo in settings.py!")
-
+ 
         self.team = Team(
             name="Technical Trading Desk",
             members=active_members,
-            model=Gemini(id=self.model_desk, api_key=self.api_key),
+            model=llm_desk,
             description="Sei il Capo del Trading Desk. Coordini gli esperti tecnici con focus primario sui VOLUMI.",
             instructions=[
                 "Ricevi i dati OHLCV e interroga gli specialisti tecnici.",
@@ -91,7 +97,7 @@ class AgnoTechnicalTeam:
             num_history_messages=3,
             markdown=True,
         )
-        logger.success(f"[AGNO] Team Tecnico pronto con modelli: {self.model_desk}/{self.model_specialists}")
+        logger.success(f"[AGNO] Team Tecnico pronto con modelli: {llm_desk.id}/{llm_specialists.id}")
 
     def analizza_specialista(self, nome_specialista, data_summary, macro_sentiment="Neutrale"):
         """Esegue l'analisi di un singolo esperto (Modalità Sequenziale per risparmio quota)."""

@@ -8,27 +8,33 @@ import settings
 # Import dei componenti Agno V5
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from agents.agno_macro_expert import AgnoMacroExpert
+from agents.agno_macro_expert import AgnoMacroExpert
 from agents.agno_technical_team import AgnoTechnicalTeam
+from agents.context_expander_agent import ContextExpanderAgent
 
 load_dotenv()
 
 class SupervisorAgent:
     """
-    Controller Multi-Agente V5 (Configurable & SQLite Storage).
-    Utilizza Agno SDK e Google Gemini.
+    Controller Multi-Agente V5 (Ibrido: Gemini + Qwen).
+    Gestisce il flusso tra:
+    - Analisi Macro (Qwen)
+    - Ricerca Libri/Knowledge (Gemini Agentic Search)
+    - Team Tecnico (Qwen)
     """
     
     def __init__(self):
         # 1. Caricamento Impostazioni Centralizzate
-        self.api_key = settings.GEMINI_API_KEY
+        self.provider = settings.LLM_PROVIDER
         self.storage_location = settings.STORAGE_LOCATION
         self.db_path = settings.DATABASE_PATH
         
         # 2. Inizializzazione Sotto-Agenti
         self.macro_expert = AgnoMacroExpert()
         self.tech_team = AgnoTechnicalTeam()
+        self.knowledge_expert = ContextExpanderAgent() # Bibliotecario Gemini
         
-        logger.success(f"[AGNO SUPERVISOR] Sistema V5 inizializzato con storage {self.storage_location}.")
+        logger.success(f"[AGNO SUPERVISOR] Sistema V5 IBRIDO pronto (Gemini + Qwen).")
 
     def analizza_asset(self, data_dict, nome_asset):
         """
@@ -51,8 +57,20 @@ class SupervisorAgent:
             logger.info("[SUPERVISORE] Analisi Macro disattivata in settings.py. Salto lo Step 1.")
             macro_sentiment = "Analisi Macro Saltata (Bias Neutrale)"
 
+        # 2. Step 2: Ricerca Profonda nei Libri (Knowledge Expansion via Gemini)
+        logger.info(f"[SUPERVISORE] Interrogazione Biblioteca Gemini per {nome_asset}...")
+        try:
+            query_knowledge = f"Quali sono le migliori strategie di trading e i pattern più affidabili descritti nei libri per l'asset {nome_asset} in un mercato con sentiment {macro_sentiment}?"
+            knowledge_context = self.knowledge_expert.search_knowledge(query_knowledge)
+        except Exception as e:
+            logger.error(f"Errore nella ricerca libri: {e}")
+            knowledge_context = "Nessuna conoscenza specifica estratta dai libri per questa sessione."
+        
         # Preparazione dati per i tecnici (semplificati per risparmiare token)
         ctx_summary = f"""
+        CONTESTO STRATEGICO (DAI LIBRI):
+        {knowledge_context}
+        
         DATI 1H (ultime candele):
         {data_dict["1h"].tail(20).to_string()}
         
@@ -60,7 +78,7 @@ class SupervisorAgent:
         {data_dict["1d"].tail(10).to_string()}
         """
         
-        # 2. Step 2: Analisi Tecnica Sequenziale
+        # 3. Step 3: Analisi Tecnica Sequenziale (Qwen)
         results_tech = {}
         
         # Elenco agenti da interrogare (se attivi)
@@ -71,7 +89,7 @@ class SupervisorAgent:
             ("Volume Analyst", settings.AGENT_VOLUME_ENABLED)
         ]
 
-        logger.info(f"Inizio analisi tecnica sequenziale (4 specialisti)...")
+        logger.info(f"Inizio analisi tecnica sequenziale (4 specialisti) con contesto ibrido...")
         for nome, attivo in specialisti:
             if attivo:
                 logger.info(f"Interrogazione {nome}...")
@@ -81,11 +99,14 @@ class SupervisorAgent:
             else:
                 results_tech[nome] = "Analisi Disattivata"
 
-        # 3. Step 3: Sintesi Finale (Orchestrazione nel Supervisor)
+        # 4. Step 4: Sintesi Finale (Orchestrazione nel Supervisor)
         logger.info("Generazione verdetto finale...")
         
         report_definitivo = f"""
-# REPORT TRADING AI: {nome_asset}
+# REPORT TRADING AI (IBRIDO GEMINI+QWEN): {nome_asset}
+
+## 📖 CONTESTO DALLA LIBRERIA (Strategie Master)
+{knowledge_context}
 
 ## 🌎 ANALISI MACROECONOMICA
 {macro_sentiment}
