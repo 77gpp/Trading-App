@@ -44,20 +44,29 @@ class AgnoTechnicalTeam:
             name="Pattern Analyst",
             model=llm_specialists,
             description="Esperto in Candlestick e Chart Patterns.",
-            instructions=[f"ANALIZZA PATTERN USANDO QUESTE SKILL:\n{all_skills[:3000]}"],
+            instructions=[
+                "Inizia sempre la tua risposta con una sezione '🛠️ STRUMENTI UTILIZZATI' elencando i pattern specifici cercati (es. Engulfing, Triangoli, Testa e Spalle).",
+                f"ANALIZZA PATTERN USANDO QUESTE SKILL:\n{all_skills[:3000]}"
+            ],
         )
         
         self.trend_expert = Agent(
             name="Trend Analyst",
             model=llm_specialists,
             description="Esperto in Trend e Momentum.",
-            instructions=[f"ANALIZZA TREND USANDO QUESTE SKILL:\n{all_skills[:3000]}"],
+            instructions=[
+                "Inizia sempre la tua risposta con una sezione '🛠️ STRUMENTI UTILIZZATI' elencando gli indicatori di trend applicati (es. SMA, EMA, Trendline, SuperTrend).",
+                f"ANALIZZA TREND USANDO QUESTE SKILL:\n{all_skills[:3000]}"
+            ],
         )
         
         self.sr_expert = Agent(
             name="SR Analyst",
             model=llm_specialists,
             description="Esperto in Supporti e Resistenze.",
+            instructions=[
+                "Inizia sempre la tua risposta con una sezione '🛠️ STRUMENTI UTILIZZATI' elencando i metodi usati (es. Pivot Points, Livelli Psicologici, Aree Supply/Demand)."
+            ],
         )
         
         self.volume_expert = Agent(
@@ -65,6 +74,7 @@ class AgnoTechnicalTeam:
             model=llm_specialists,
             description="Maestro di VSA e Wyckoff. Analizza lo Sforzo vs Risultato.",
             instructions=[
+                "Inizia sempre la tua risposta con una sezione '🛠️ STRUMENTI UTILIZZATI' elencando i concetti VSA applicati (es. No Demand, Climax, SOS, Wyckoff Phases).",
                 "Esegui un'analisi volumetrica profonda usando VSA (Volume Spread Analysis).",
                 "Cerca segnali di Accumulazione e Distribuzione di Wyckoff.",
                 "Valuta Sforzo vs Risultato: se il volume è alto ma il prezzo non si muove, c'è assorbimento?",

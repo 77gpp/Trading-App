@@ -108,7 +108,7 @@ class SupervisorAgent:
 ## 📖 CONTESTO DALLA LIBRERIA (Strategie Master)
 {knowledge_context}
 
-## 🌎 ANALISI MACROECONOMICA
+## 🌎 ANALISI MACROECONOMICA E NEWS (FONDAMENTALI)
 {macro_sentiment}
 
 ## 📊 RISULTATI TEAM TECNICO
