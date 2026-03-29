@@ -6,7 +6,7 @@ Questa documentazione descrive il sistema di analisi professionale basato sul fr
 
 ```mermaid
 graph TD
-    User["🟢 Ingresso Utente"] --> Settings["⚙️ settings.py (Config Control)"]
+    User["🟢 Ingresso Utente"] --> Settings["⚙️ Calibrazione.py (Config Control)"]
     Settings --> Data["📊 DataFetcher"]
     Data --> Sup["🧥 Supervisor Agent (Agno Controller)"]
     

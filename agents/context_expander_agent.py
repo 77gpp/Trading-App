@@ -1,7 +1,7 @@
 import os
 import google.generativeai as genai
 from loguru import logger
-import settings
+import Calibrazione
 
 class ContextExpanderAgent:
     """
@@ -10,9 +10,9 @@ class ContextExpanderAgent:
     """
     
     def __init__(self):
-        self.api_key = settings.GEMINI_API_KEY
-        self.model_id = settings.MODEL_KNOWLEDGE_SEARCH
-        self.books_dir = settings.BOOKS_DIR
+        self.api_key = Calibrazione.GEMINI_API_KEY
+        self.model_id = Calibrazione.MODEL_KNOWLEDGE_SEARCH
+        self.books_dir = Calibrazione.BOOKS_DIR
         
         if self.api_key:
             genai.configure(api_key=self.api_key)

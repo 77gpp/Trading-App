@@ -4,21 +4,21 @@ from agno.team import Team
 from agno.models.google import Gemini
 from agno.db.sqlite import SqliteDb
 from loguru import logger
-import settings
+import Calibrazione
 
 class AgnoTechnicalTeam:
     """Team di esperti V5 (Configurable & Free)."""
     
     def __init__(self):
-        self.api_key = settings.GEMINI_API_KEY
-        self.model_desk = settings.MODEL_TECH_ORCHESTRATOR
-        self.model_specialists = settings.MODEL_TECH_SPECIALISTS
-        self.db_path = settings.DATABASE_PATH
-        self.skills_dir = settings.SKILLS_LIBRARY_DIR
+        self.api_key = Calibrazione.GEMINI_API_KEY
+        self.model_desk = Calibrazione.MODEL_TECH_ORCHESTRATOR
+        self.model_specialists = Calibrazione.MODEL_TECH_SPECIALISTS
+        self.db_path = Calibrazione.DATABASE_PATH
+        self.skills_dir = Calibrazione.SKILLS_LIBRARY_DIR
         
         # 1. Configurazione Storage Locale (Condiviso per il Team)
         self.storage = None
-        if settings.STORAGE_LOCATION == "local":
+        if Calibrazione.STORAGE_LOCATION == "local":
             self.storage = SqliteDb(
                 session_table="technical_team_session",
                 db_file=self.db_path
@@ -74,13 +74,13 @@ class AgnoTechnicalTeam:
         
         # 4. Creazione Team Desk (Capo Team)
         active_members = []
-        if settings.AGENT_PATTERN_ENABLED: active_members.append(self.pattern_expert)
-        if settings.AGENT_TREND_ENABLED: active_members.append(self.trend_expert)
-        if settings.AGENT_SR_ENABLED: active_members.append(self.sr_expert)
-        if settings.AGENT_VOLUME_ENABLED: active_members.append(self.volume_expert)
+        if Calibrazione.AGENT_PATTERN_ENABLED: active_members.append(self.pattern_expert)
+        if Calibrazione.AGENT_TREND_ENABLED: active_members.append(self.trend_expert)
+        if Calibrazione.AGENT_SR_ENABLED: active_members.append(self.sr_expert)
+        if Calibrazione.AGENT_VOLUME_ENABLED: active_members.append(self.volume_expert)
         
         if not active_members:
-            logger.warning("[AGNO TEAM] Attenzione: Nessun agente tecnico attivo in settings.py!")
+            logger.warning("[AGNO TEAM] Attenzione: Nessun agente tecnico attivo in Calibrazione.py!")
  
         self.team = Team(
             name="Technical Trading Desk",

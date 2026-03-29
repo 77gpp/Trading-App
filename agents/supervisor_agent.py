@@ -3,7 +3,7 @@ import sys
 import time
 from dotenv import load_dotenv
 from loguru import logger
-import settings
+import Calibrazione
 
 # Import dei componenti Agno V5
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,9 +25,9 @@ class SupervisorAgent:
     
     def __init__(self):
         # 1. Caricamento Impostazioni Centralizzate
-        self.provider = settings.LLM_PROVIDER
-        self.storage_location = settings.STORAGE_LOCATION
-        self.db_path = settings.DATABASE_PATH
+        self.provider = Calibrazione.LLM_PROVIDER
+        self.storage_location = Calibrazione.STORAGE_LOCATION
+        self.db_path = Calibrazione.DATABASE_PATH
         
         # 2. Inizializzazione Sotto-Agenti
         self.macro_expert = AgnoMacroExpert()
@@ -43,7 +43,7 @@ class SupervisorAgent:
         logger.info(f"\n{'='*60}\nAVVIO ANALISI SEQUENZIALE su {nome_asset}\n{'='*60}")
         
         # 1. Step 1: Analisi Macro (The Strategist)
-        if settings.AGENT_MACRO_ENABLED:
+        if Calibrazione.AGENT_MACRO_ENABLED:
             try:
                 query_macro = f"{nome_asset} news and global macro sentiment today"
                 macro_sentiment = self.macro_expert.analizza(query_macro)
@@ -54,7 +54,7 @@ class SupervisorAgent:
             logger.info(f"Sentiment Macro ottenuto. Attesa 25s di sicurezza...")
             time.sleep(25)
         else:
-            logger.info("[SUPERVISORE] Analisi Macro disattivata in settings.py. Salto lo Step 1.")
+            logger.info("[SUPERVISORE] Analisi Macro disattivata in Calibrazione.py. Salto lo Step 1.")
             macro_sentiment = "Analisi Macro Saltata (Bias Neutrale)"
 
         # 2. Step 2: Ricerca Profonda nei Libri (Knowledge Expansion via Gemini)
@@ -83,10 +83,10 @@ class SupervisorAgent:
         
         # Elenco agenti da interrogare (se attivi)
         specialisti = [
-            ("Pattern Analyst", settings.AGENT_PATTERN_ENABLED),
-            ("Trend Analyst", settings.AGENT_TREND_ENABLED),
-            ("SR Analyst", settings.AGENT_SR_ENABLED),
-            ("Volume Analyst", settings.AGENT_VOLUME_ENABLED)
+            ("Pattern Analyst", Calibrazione.AGENT_PATTERN_ENABLED),
+            ("Trend Analyst", Calibrazione.AGENT_TREND_ENABLED),
+            ("SR Analyst", Calibrazione.AGENT_SR_ENABLED),
+            ("Volume Analyst", Calibrazione.AGENT_VOLUME_ENABLED)
         ]
 
         logger.info(f"Inizio analisi tecnica sequenziale (4 specialisti) con contesto ibrido...")
@@ -119,7 +119,7 @@ class SupervisorAgent:
 
 ## 🚀 VERDETTO FINALE
 L'analisi combinata è basata sugli agenti attualmente ATTIVI nel sistema. 
-(Configurazione personalizzata in settings.py)
+(Configurazione personalizzata in Calibrazione.py)
         """
         
         return report_definitivo

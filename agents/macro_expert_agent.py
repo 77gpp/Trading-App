@@ -2,7 +2,7 @@ import os
 import sys
 from loguru import logger
 from agno.agent import Agent
-import settings
+import Calibrazione
 
 # Aggiungiamo il path per poter importare i moduli dalle altre cartelle
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

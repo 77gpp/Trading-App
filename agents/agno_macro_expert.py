@@ -5,20 +5,20 @@ from agno.db.sqlite import SqliteDb
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.tools.yfinance import YFinanceTools
 from loguru import logger
-import settings
+import Calibrazione
 
 class AgnoMacroExpert:
     """Strategist Macroeconomico V5 (Configurable & Free)."""
     
     def __init__(self):
-        self.api_key = settings.GEMINI_API_KEY
-        self.model_id = settings.MODEL_MACRO_EXPERT
-        self.db_path = settings.DATABASE_PATH
-        self.macro_file = os.path.join(settings.MACRO_LIBRARY_DIR, "macro_fundamentals.md")
+        self.api_key = Calibrazione.GEMINI_API_KEY
+        self.model_id = Calibrazione.MODEL_MACRO_EXPERT
+        self.db_path = Calibrazione.DATABASE_PATH
+        self.macro_file = os.path.join(Calibrazione.MACRO_LIBRARY_DIR, "macro_fundamentals.md")
         
         # 1. Configurazione Storage Locale (SQLite su Mac)
         self.storage = None
-        if settings.STORAGE_LOCATION == "local":
+        if Calibrazione.STORAGE_LOCATION == "local":
             self.storage = SqliteDb(
                 session_table="macro_expert_session",
                 db_file=self.db_path
