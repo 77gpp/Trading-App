@@ -22,3 +22,6 @@ venv/
 data/books/
 *.pdf
 storage/memory/trading_system.db
+*.db
+*.sqlite
+*.log
