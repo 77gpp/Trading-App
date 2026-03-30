@@ -44,9 +44,9 @@ class AgnoMacroExpert:
             instructions=[
                 "Analizza lo scenario globale basandoti sui fondamentali forniti nel contesto, sulle news web e sui dati finanziari real-time.",
                 f"CONTESTO MACRO ESTRATTO DALLA LIBRERIA:\n{content[:5000]}...",
-                "Utilizza il tool DuckDuckGo per cercare notizie recenti sull'asset richiesto (es. 'Gold news today').",
+                f"Utilizza il tool DuckDuckGo per cercare notizie recenti degli ultimi {Calibrazione.MACRO_ANALYSIS_DAYS} giorni sull'asset richiesto.",
                 "IMPORTANTE: Per ogni notizia consultata, riporta sempre il Titolo (linkabile all'URL della fonte se disponibile).",
-                "Utilizza il tool YFinance per ottenere il prezzo attuale, i volumi e i dati recenti (es. ticker 'GC=F' per l'Oro).",
+                f"Utilizza il tool YFinance per ottenere il prezzo attuale, i volumi e i dati degli ultimi {Calibrazione.MACRO_ANALYSIS_DAYS} giorni (es. ticker 'GC=F' per l'Oro).",
                 "IMPORTANTE: Riporta sempre i dati numerici grezzi prelevati (Ultimo prezzo, Variazione %, Volumi 24h) citando esplicitamente la fonte Yahoo Finance.",
                 "IMPONI SEMPRE un'analisi volumetrica approfondita (VSA/Wyckoff) come filtro primario per il Team Tecnico.",
                 "Segui un ragionamento a 4 step: Prezzo/Volumi -> News/Dati -> Analisi Indicatori -> Sintesi Sentiment.",

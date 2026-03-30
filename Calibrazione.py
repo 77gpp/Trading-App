@@ -21,6 +21,7 @@ DATABASE_PATH = "storage/memory/trading_system.db"
 
 # --- ATTIVAZIONE AGENTI (Metti True per attivare, False per disattivare) ---
 AGENT_MACRO_ENABLED = True      # Analisi Notizie e Sentiment Globale
+MACRO_ANALYSIS_DAYS = 10        # Periodo di analisi per le news e i dati macro (es. 10 giorni)
 
 AGENT_PATTERN_ENABLED = True    # Analisi Pattern Candele (Joe Ross/Nison)
 AGENT_TREND_ENABLED = True      # Analisi Trend e Medie Mobili

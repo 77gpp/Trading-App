@@ -45,7 +45,7 @@ class SupervisorAgent:
         # 1. Step 1: Analisi Macro (The Strategist)
         if Calibrazione.AGENT_MACRO_ENABLED:
             try:
-                query_macro = f"{nome_asset} news and global macro sentiment today"
+                query_macro = f"{nome_asset} news and global macro sentiment for the last {Calibrazione.MACRO_ANALYSIS_DAYS} days"
                 macro_sentiment = self.macro_expert.analizza(query_macro)
             except Exception as e:
                 logger.warning(f"Errore durante l'analisi macro (tool): {e}. Procedo con sentiment neutrale.")
@@ -75,7 +75,7 @@ class SupervisorAgent:
         {data_dict["1h"].tail(20).to_string()}
         
         DATI 1D (ultime candele):
-        {data_dict["1d"].tail(10).to_string()}
+        {data_dict["1d"].tail(Calibrazione.MACRO_ANALYSIS_DAYS).to_string()}
         """
         
         # 3. Step 3: Analisi Tecnica Sequenziale (Qwen)

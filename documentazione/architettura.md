@@ -239,7 +239,26 @@ Grazie al file **Calibrazione.py**, l'utente può scegliere dinamicamente quale 
 
 ---
 
-## 6. Guida Operativa (Quick Start)
+---
+
+## 7. Gestione del Rischio e Livelli Operativi (SL/TP)
+
+Il sistema è progettato per operare con un approccio conservativo e professionale. La gestione del rischio non è delegata a un semplice calcolo matematico, ma è il risultato di un processo di validazione gerarchica.
+
+### 7.1 Chi effettua la Risk Analysis?
+L'analisi del rischio è "a più mani" e coinvolge due figure chiave:
+1.  **Il Volume Analyst (Il Validatore)**: È il primo guardiano. Utilizzando la logica **VSA (Volume Spread Analysis)** e lo studio dello **"Sforzo vs Risultato"**, verifica se i grandi capitali stanno sostenendo il movimento. Se il prezzo si muove senza supporto volumetrico, l'agente segnala un **ALTO RISCHIO** di trappola (Fakeout).
+2.  **Il Synthesis Agent (Il CIO)**: Agisce come supervisore finale. Il suo compito è rilevare **conflitti logici** tra gli specialisti. Se il Macro Sentiment è in disaccordo con la tecnica, o se gli specialisti hanno pareri divergenti, il Synthesis Agent aumenta il grado di cautela nel verdetto finale.
+
+### 7.2 Logica di fissaggio Stop Loss e Take Profit
+I livelli operativi non seguono percentuali fisse (es. 2% fisso), ma si adattano alla **struttura del mercato**:
+*   **Stop Loss (SL)**: Viene posizionato dal **Synthesis Agent** basandosi sui dati dello specialista **SR Analyst**. Lo Stop viene collocato oltre i livelli di supporto o resistenza chiave (pivot point, aree di supply/demand), ovvero in zone dove l'ipotesi tecnica iniziale verrebbe matematicamente invalidata.
+*   **Take Profit (TP)**: I target vengono fissati sulle aree di liquidità successiva identificata dagli agenti. La logica è quella di uscire dal mercato dove la probabilità di un rimbalzo o di una resistenza contraria è massima.
+
+---
+
+## 8. Guida Operativa (Quick Start)
+
 
 ### Avvio e Utilizzo
 1.  **Analisi Asset**: Esegui `python3 app.py` per avviare il desk.
