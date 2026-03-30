@@ -1,6 +1,7 @@
 import pandas as pd
 import yfinance as yf
 from loguru import logger
+import Calibrazione
 
 class DataFetcher:
     """
@@ -9,12 +10,15 @@ class DataFetcher:
     """
     
     @staticmethod
-    def get_mtf_data(ticker="GC=F", days=60):
+    def get_mtf_data(ticker="GC=F", days=None):
         """
         Scarica dati OHLCV reali per diversi timeframe.
         ticker: Simbolo Yahoo Finance (es. GC=F per Oro, XAUUSD=X per Spot)
-        days: Numero di giorni di storico
+        days: Numero di giorni di storico (opzionale, usa Calibrazione se None)
         """
+        if days is None:
+            days = Calibrazione.TECH_LONG_TERM_CANDLES
+            
         logger.info(f"[DATA FETCHER] Download dati reali per {ticker} ({days} giorni)...")
         
         try:
@@ -46,9 +50,9 @@ class DataFetcher:
             logger.success(f"[DATA FETCHER] Download completato per {ticker}.")
             
             return {
-                "1h": df_1h_raw.tail(100), # Ultime 100 candele per analisi tecnica
-                "4h": df_4h.tail(100),
-                "1d": df_1d.tail(60)
+                "1h": df_1h_raw.tail(Calibrazione.TECH_SHORT_TERM_CANDLES), # Candele configurabili
+                "4h": df_4h.tail(Calibrazione.TECH_MID_TERM_CANDLES),
+                "1d": df_1d.tail(Calibrazione.TECH_LONG_TERM_CANDLES)
             }
             
         except Exception as e:

@@ -23,6 +23,11 @@ DATABASE_PATH = "storage/memory/trading_system.db"
 AGENT_MACRO_ENABLED = True      # Analisi Notizie e Sentiment Globale
 MACRO_ANALYSIS_DAYS = 10        # Periodo di analisi per le news e i dati macro (es. 10 giorni)
 
+# --- ANALISI TECNICA: PERIODI (Numero di Candele) ---
+TECH_SHORT_TERM_CANDLES = 100    # Breve Termine (Grafico 1h) - es. ultime 100 ore
+TECH_MID_TERM_CANDLES = 100      # Medio Termine (Grafico 4h) - es. ultime 100 candele da 4 ore
+TECH_LONG_TERM_CANDLES = 60      # Lungo Termine (Grafico 1d) - es. ultimi 60 giorni di borsa
+
 AGENT_PATTERN_ENABLED = True    # Analisi Pattern Candele (Joe Ross/Nison)
 AGENT_TREND_ENABLED = True      # Analisi Trend e Medie Mobili
 AGENT_SR_ENABLED = True         # Analisi Supporti e Resistenze
