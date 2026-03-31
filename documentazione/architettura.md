@@ -14,6 +14,7 @@ graph TD
         Sup --> Macro["🌎 Agno Macro Expert"]
         MacroLib["📚 Macro Library"] --> Macro
         Web["📰 Web News (DuckDuckGo)"] --> Macro
+        Alpaca["📊 Market News (Alpaca)"] --> Macro
         Mkt["📈 Market Data (YFinance)"] --> Macro
         Macro -->|"Macro Sentiment"| Sup
     end
@@ -169,7 +170,8 @@ L'Agente Macro non prende decisioni basandosi su un singolo "fotogramma", ma gua
 Per garantire che l'analisi sia sempre aggiornata all'ultimo secondo, il sistema attinge da due fonti globali autorevoli:
 
 1.  **I Volumi e i Prezzi (Yahoo Finance)**: Tutti i dati numerici arrivano direttamente dai server di **Yahoo Finance**. Questo garantisce precisione su ticker mondiali (come l'Oro `GC=F`, il Petrolio `CL=F` o le coppie Forex). Il sistema preleva non solo l'ultimo prezzo, ma anche i volumi scambiati nelle ultime 24 ore per validare la forza del mercato.
-2.  **Il Radar Globale (DuckDuckGo Web Search)**: L'agente non è limitato a un database statico, ma "esce" sul web in tempo reale usando il motore di ricerca **DuckDuckGo**. Questo strumento agisce come un analista instancabile che scansiona diverse fonti:
+2.  **Notizie Istituzionali e di Mercato (Alpaca Markets)**: L'agente consulta l'API ufficiale di **Alpaca Markets** per ottenere notizie certificate e specifiche per il trading. Questa fonte è cruciale per catturare eventi societari, trimestrali e news ad alto impatto che influenzano direttamente la liquidità e i prezzi degli asset.
+3.  **Il Radar Globale (DuckDuckGo Web Search)**: L'agente non è limitato a un database statico, ma "esce" sul web in tempo reale usando il motore di ricerca **DuckDuckGo**. Questo strumento agisce come un analista instancabile che scansiona diverse fonti:
     *   **Earnings e Trimestrali**: Cattura istantaneamente i report aziendali e i commenti degli analisti non appena vengono pubblicati.
     *   **Organismi Internazionali (FED, BCE)**: Monitora le decisioni sui tassi d'interesse, i comunicati ufficiali e le conferenze stampa dei grandi regolatori mondiali.
     *   **Forum e Sentiment Popolare**: DuckDuckGo è in grado di vedere anche cosa si dice nelle "piazze virtuali" come **Reddit** o **Forex Factory**. Questo permette all'agente di catturare il *Retail Sentiment* (l'umore dei piccoli trader), distinguendo tra i fatti nudi e crudi e le emozioni del mercato (euforia o panico).
@@ -183,7 +185,7 @@ Per garantire che l'analisi sia sempre aggiornata all'ultimo secondo, il sistema
 *   **Modello**: Dinamico (da settings).
 *   **Funzioni**:
     1.  **Analisi Fondamentale**: Interroga la libreria macro (`macro_fundamentals.md`) per estrarre sentiment su DXY e inflazione.
-    2.  **Live News**: Equipaggiato con **DuckDuckGoTools**, effettua ricerche sul web (Sorgente: *DuckDuckGo Search*) per catturare news dell'ultima ora sull'asset analizzato.
+    2.  **Live News (Web & Pro)**: Equipaggiato con **DuckDuckGoTools** e un tool custom per **Alpaca Markets API**, effettua ricerche sia sul web generico che sui canali ufficiali di borsa per catturare news dell'ultima ora altamente qualificate.
     3.  **Dati Quantitativi**: Grazie a **YFinanceTools**, ottiene prezzi, volumi e variazioni percentuali istantanee (Sorgente: *Yahoo Finance*, ticker `GC=F` per l'Oro).
 *   **Memoria**: Salva le conclusioni nel database SQLite per garantire coerenza tra diverse sessioni.
 
@@ -191,6 +193,7 @@ Per garantire che l'analisi sia sempre aggiornata all'ultimo secondo, il sistema
 | Agente | Strumento (Tool) | Sorgente Dati (Data Source) | Contenuto |
 | :--- | :--- | :--- | :--- |
 | **Macro Expert** | `DuckDuckGoTools` | Web (Motore di Ricerca) | Notizie, Sentiment, Eventi |
+| **Macro Expert** | `AlpacaNewsTool` | Alpaca Markets News API | Notizie Istituzionali certificati |
 | **Macro Expert** | `YFinanceTools` | Yahoo Finance | Prezzi Real-Time, Volumi, Ticker |
 | **Macro Expert** | `Gemini Search` | Libreria Macro Locale | Fondamentali Economici, Bias |
 | **Tech Team** | `Agentic Search` | Skills Library & Books | Regole di Trading, Pattern |

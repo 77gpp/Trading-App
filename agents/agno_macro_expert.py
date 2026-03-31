@@ -6,6 +6,7 @@ from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.tools.yfinance import YFinanceTools
 from loguru import logger
 import Calibrazione
+from agents.alpaca_news_tool import get_alpaca_news
 
 class AgnoMacroExpert:
     """Strategist Macroeconomico V5 (Configurable & Free)."""
@@ -39,13 +40,18 @@ class AgnoMacroExpert:
         self.agent = Agent(
             name="Macro Strategist",
             model=llm_model,
-            description="Sei un Senior Macro Strategist. Hai accesso ai fondamentali macro, alle news web e ai dati finanziari real-time.",
-            tools=[DuckDuckGoTools(), YFinanceTools(enable_stock_price=True, enable_analyst_recommendations=True, enable_company_info=False)],
+            description="Sei un Senior Macro Strategist. Hai accesso ai fondamentali macro, alle news web (DuckDuckGo), alle news ufficiali Alpaca Markets e ai dati finanziari real-time.",
+            tools=[
+                DuckDuckGoTools(fixed_max_results=getattr(Calibrazione, "DUCKDUCKGO_NEWS_LIMIT", 10)), 
+                YFinanceTools(enable_stock_price=True, enable_analyst_recommendations=True, enable_company_info=False),
+                get_alpaca_news
+            ],
             instructions=[
-                "Analizza lo scenario globale basandoti sui fondamentali forniti nel contesto, sulle news web e sui dati finanziari real-time.",
+                "Analizza lo scenario globale basandoti sui fondamentali forniti nel contesto, sulle news web, sulle notizie Alpaca e sui dati finanziari real-time.",
                 f"CONTESTO MACRO ESTRATTO DALLA LIBRERIA:\n{content[:5000]}...",
                 f"Utilizza il tool DuckDuckGo per cercare notizie recenti degli ultimi {Calibrazione.MACRO_ANALYSIS_DAYS} giorni sull'asset richiesto.",
-                "IMPORTANTE: Per ogni notizia consultata, riporta sempre il Titolo (linkabile all'URL della fonte se disponibile).",
+                f"Utilizza il tool get_alpaca_news per ottenere le ultime notizie ufficiali di mercato per lo specifico simbolo dall'API di Alpaca Markets.",
+                "IMPORTANTE: Per ogni notizia consultata, riporta sempre il Titolo (linkabile all'URL della fonte se disponibile) e cita esplicitamente se la fonte è Alpaca o il Web generico.",
                 f"Utilizza il tool YFinance per ottenere il prezzo attuale, i volumi e i dati degli ultimi {Calibrazione.MACRO_ANALYSIS_DAYS} giorni (es. ticker 'GC=F' per l'Oro).",
                 "IMPORTANTE: Riporta sempre i dati numerici grezzi prelevati (Ultimo prezzo, Variazione %, Volumi 24h) citando esplicitamente la fonte Yahoo Finance.",
                 "IMPONI SEMPRE un'analisi volumetrica approfondita (VSA/Wyckoff) come filtro primario per il Team Tecnico.",

@@ -22,6 +22,8 @@ DATABASE_PATH = "storage/memory/trading_system.db"
 # --- ATTIVAZIONE AGENTI (Metti True per attivare, False per disattivare) ---
 AGENT_MACRO_ENABLED = True      # Analisi Notizie e Sentiment Globale
 MACRO_ANALYSIS_DAYS = 10        # Periodo di analisi per le news e i dati macro (es. 10 giorni)
+ALPACA_NEWS_LIMIT = 15          # Numero massimo di notizie da scaricare da Alpaca Markets
+DUCKDUCKGO_NEWS_LIMIT = 10      # Numero massimo di risultati di ricerca da DuckDuckGo
 
 # --- ANALISI TECNICA: PERIODI (Numero di Candele) ---
 TECH_SHORT_TERM_CANDLES = 100    # Breve Termine (Grafico 1h) - es. ultime 100 ore
@@ -42,3 +44,5 @@ BOOKS_DIR = "data/books"
 # Assicurati di aggiungere GROQ_API_KEY nel tuo file .env
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+ALPACA_API_KEY = os.getenv("ALPACA_API_KEY")
+ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")

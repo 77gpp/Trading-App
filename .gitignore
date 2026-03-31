@@ -7,7 +7,7 @@ venv/
 .env/
 
 # Environment variables
-.env
+# .env
 
 # LIBRERIE
 venv/
@@ -21,7 +21,8 @@ venv/
 # Trading Books & Data
 data/books/
 *.pdf
-storage/memory/trading_system.db
-*.db
-*.sqlite
-*.log
+# storage/memory/trading_system.db
+# *.db
+# *.sqlite
+# *.log
+.venv/
