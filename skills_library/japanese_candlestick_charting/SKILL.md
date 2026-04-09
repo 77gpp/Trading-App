@@ -1,3 +1,8 @@
+---
+name: japanese-candlestick-charting
+description: Il testo classico di Steve Nison sulle candele giapponesi nel trading moderno. Copre tutte le candele singole (Doji, Hammer, Shooting Star, Marubozu), doppie (Engulfing, Harami, Dark Cloud Cover) e triple (Morning Star, Evening Star, Three Soldiers), con regole di identificazione e conferma.
+---
+
 # SKILLS ESTRATTE: Japanese Candlestick Charting Techniques 2nd edition 2001.pdf
 
 ## Hammer

@@ -1,3 +1,8 @@
+---
+name: technical-analysis-multiple-timeframes
+description: Metodo di analisi multi-timeframe di Brian Shannon: uso di timeframe superiori (Weekly, Daily) per il trend primario e inferiori (4H, 1H) per il timing di entrata. Copre allineamento del trend, VWAP istituzionale e gestione del trade.
+---
+
 # SKILLS ESTRATTE: Technical Analysis Using Multiple Timeframes - Understand Market Structure and Profit from Trend Alignment.pdf
 
 ## Candlestick Chart

@@ -1,3 +1,8 @@
+---
+name: encyclopedia-of-chart-patterns
+description: Raccolta statistica completa di pattern grafici come Flags, Wedges, Head & Shoulders, Double Top/Bottom, Cup with Handle, Diamond, Triangle e decine di altri. Include la logica tecnica, le regole di trading, i target di prezzo e le statistiche di performance per ogni pattern.
+---
+
 # SKILLS ESTRATTE: Encyclopedia Of Chart Patterns
 
 Parte 1:\n## Broadening Bottoms

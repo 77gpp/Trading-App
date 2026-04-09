@@ -1,3 +1,8 @@
+---
+name: joe-ross-daytrading
+description: Il manuale operativo di Joe Ross sul day trading con i suoi sistemi esclusivi: il 1-2-3 Pattern di inversione, il Hook of Ross (HoR), le Power Bars istituzionali e il Ross Hook. Include tecniche di gestione del rischio, timing di entrata e uscita, e la filosofia operativa del trading professionale.
+---
+
 # SKILLS ESTRATTE: Joe Ross - Daytrading (Merged Clean)
 
 

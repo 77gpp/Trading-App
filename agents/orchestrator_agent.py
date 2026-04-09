@@ -11,6 +11,8 @@ from agents.specialists.trend_agent import TrendAgent
 from agents.specialists.sr_agent import SRAgent
 from agents.specialists.volume_agent import VolumeAgent
 
+import Calibrazione
+
 class OrchestratorAgent:
     """
     Manager/Planner del Multi-Agent Trading Desk (V3).
@@ -23,7 +25,7 @@ class OrchestratorAgent:
     
     def __init__(self, api_key=None):
         # Usiamo il model_factory per ottenere il modello corretto (Qwen o Gemini)
-        self.model = get_model()
+        self.model = get_model(Calibrazione.MODEL_TECH_ORCHESTRATOR, temperature=Calibrazione.TEMPERATURE_TECH_ORCHESTRATOR)
         
         # Inizializziamo l'Agente Agno per il routing
         self.router_agent = Agent(
@@ -51,12 +53,19 @@ class OrchestratorAgent:
         if not os.path.exists(self.library_dir):
             return "Libreria non trovata."
             
-        all_skill_files = [f for f in os.listdir(self.library_dir) if f.endswith(".md")]
-        if not all_skill_files:
-            return "Nessuna skill trovata."
+        # Scansione sottocartelle (ogni cartella è una skill in formato Agno)
+        all_skills = []
+        if os.path.exists(self.library_dir):
+            for d in os.listdir(self.library_dir):
+                subdir = os.path.join(self.library_dir, d)
+                if os.path.isdir(subdir) and os.path.exists(os.path.join(subdir, "SKILL.md")):
+                    all_skills.append(d)
+        
+        if not all_skills:
+            return "Nessuna skill trovata nelle sottocartelle."
 
-        # Prendiamo le intestazioni dei file per la selezione
-        skills_summary = "\n".join(all_skill_files[:5]) 
+        # Prendiamo i nomi delle cartelle (che rappresentano i libri) per la selezione
+        skills_summary = "\n".join(all_skills)
             
         prompt = f"""
         CONTESTO GLOBALE: {macro_context}

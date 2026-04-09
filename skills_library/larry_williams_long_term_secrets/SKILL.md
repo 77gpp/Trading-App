@@ -1,3 +1,8 @@
+---
+name: larry-williams-long-term-secrets
+description: Il libro fondamentale di Larry Williams sul trading a breve termine con approccio scientifico. Copre il Williams Percent Range, short-term pivot points, timing di entrata e uscita, e la filosofia del trading operativo.
+---
+
 # SKILLS ESTRATTE: Long-Term Secrets to Short-Term Trading 1999.pdf
 
 ## Short-Term High/Low (Pivot Points)

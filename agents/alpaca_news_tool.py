@@ -4,12 +4,14 @@ from datetime import datetime, timedelta
 import Calibrazione
 from loguru import logger
 
-def get_alpaca_news(symbol: str) -> str:
+def get_alpaca_news(symbol: str, start: str = None, end: str = None) -> str:
     """
-    Ottiene le ultime 5 notizie finanziarie ufficiali per un determinato simbolo (es. 'AAPL', 'GC=F', 'BTC/USD') da Alpaca Markets News API.
+    Ottiene le notizie finanziarie ufficiali per un determinato simbolo in un periodo specifico.
     
     Args:
         symbol (str): Il simbolo dell'asset da cercare.
+        start (str, optional): Data inizio ISO (YYYY-MM-DD). Default: oggi - MACRO_ANALYSIS_DAYS.
+        end (str, optional): Data fine ISO (YYYY-MM-DD). Default: oggi.
         
     Returns:
         str: Una stringa formattata con i titoli delle notizie e i link alle fonti.
@@ -24,15 +26,27 @@ def get_alpaca_news(symbol: str) -> str:
             secret_key=Calibrazione.ALPACA_SECRET_KEY
         )
         
-        # Calcoliamo il periodo di ricerca basandoci sulla calibrazione
-        days_back = getattr(Calibrazione, "MACRO_ANALYSIS_DAYS", 10)
-        start_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # Calcoliamo il periodo di ricerca basandoci sui parametri obbligatori
+        if start:
+            # Se la stringa è solo data YYYY-MM-DD, aggiungiamo l'ora
+            if len(start) == 10: start += "T00:00:00Z"
+            start_dt_str = start
+        else:
+            logger.error("[ALPACA TOOL] Data di inizio mancante. Impossibile procedere senza periodo definito.")
+            return "ERRORE: Periodo di analisi non fornito. L'analisi richiede date di inizio e fine obbligatorie."
+
+        if end:
+            if len(end) == 10: end += "T23:59:59Z"
+            end_dt_str = end
+        else:
+            end_dt_str = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
         
-        logger.info(f"[ALPACA TOOL] Ricerca news per {symbol} negli ultimi {days_back} giorni...")
+        logger.info(f"[ALPACA TOOL] Ricerca news per {symbol} nel periodo {start_dt_str} -> {end_dt_str}...")
         
         request_params = NewsRequest(
             symbols=symbol,
-            start=start_date,
+            start=start_dt_str,
+            end=end_dt_str,
             limit=getattr(Calibrazione, "ALPACA_NEWS_LIMIT", 15)
         )
         
@@ -41,7 +55,7 @@ def get_alpaca_news(symbol: str) -> str:
         articles = news_response.data.get('news', [])
         
         if not articles:
-            return f"Nessuna notizia ufficiale trovata su Alpaca per {symbol} negli ultimi {days_back} giorni."
+            return f"Nessuna notizia ufficiale trovata su Alpaca per {symbol} nel periodo indicato ({start_dt_str} -> {end_dt_str})."
         
         formatted_news = [f"### Notizie Alpaca Markets per {symbol}:"]
         for article in articles:

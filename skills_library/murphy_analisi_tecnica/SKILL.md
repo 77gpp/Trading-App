@@ -1,3 +1,8 @@
+---
+name: murphy-analisi-tecnica
+description: Testo classico di analisi tecnica di John J. Murphy. Copre trend, medie mobili, oscillatori RSI/MACD, pattern grafici, Fibonacci, correlazioni intermarket e la teoria di Dow.
+---
+
 # SKILLS ESTRATTE: Murphy - Analisi Tecnica Dei Mercati Finanziari.pdf
 
 ## Teoria di Dow (Dow Theory)

@@ -1,28 +1,28 @@
-# Python
+# Python (Cache e compilati)
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-venv/
-.env/
 
-# Environment variables
-# .env
+# Variabili di Ambiente (SICUREZZA - Non caricare mai le tue API Key)
+.env
 
-# LIBRERIE
-venv/
-
-# MacOS
+# Sistema Operativo
 .DS_Store
+Thumbs.db
 
-# VS Code
+# Configurazioni Editor
 .vscode/
+.antigravity/
 
-# Trading Books & Data
-data/books/
+# Dati e Documenti di Trading
+data/
+storage/
 *.pdf
-# storage/memory/trading_system.db
-# *.db
-# *.sqlite
-# *.log
+*.log
+*.sqlite
+*.db
+
+# Ambiente Virtuale Python (Librerie locali)
 .venv/
+
