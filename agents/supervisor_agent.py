@@ -19,6 +19,65 @@ from agents.specialists.volume_agent import VolumeAgent
 
 load_dotenv()
 
+
+def _smart_sleep(error_message: str, fallback: int = 30) -> None:
+    """
+    Legge il tempo di attesa reale dal messaggio di errore Groq (rate limit)
+    e aspetta esattamente il necessario + 2s di margine.
+
+    Groq restituisce messaggi del tipo:
+      "Please try again in 27.345s"
+      "Please try again in 1m30s"
+
+    Se il tempo non è estraibile, usa il valore fallback (default 30s).
+    """
+    # Pattern "in 27.345s"
+    match_s = re.search(r"try again in ([\d.]+)s", error_message)
+    if match_s:
+        wait = float(match_s.group(1)) + 2
+        logger.info(f"[RATE LIMIT] Attesa smart: {wait:.1f}s (da errore Groq)")
+        time.sleep(wait)
+        return
+
+    # Pattern "in 1m30s" o "in 2m5.5s"
+    match_ms = re.search(r"try again in (\d+)m([\d.]+)s", error_message)
+    if match_ms:
+        wait = int(match_ms.group(1)) * 60 + float(match_ms.group(2)) + 2
+        logger.info(f"[RATE LIMIT] Attesa smart: {wait:.1f}s (da errore Groq)")
+        time.sleep(wait)
+        return
+
+    # Fallback
+    logger.info(f"[RATE LIMIT] Tempo non estraibile — attesa fallback: {fallback}s")
+    time.sleep(fallback)
+
+
+def _call_with_retry(fn, *args, max_retries: int = 3, fallback: int = 30, **kwargs):
+    """
+    Esegue fn(*args, **kwargs) con retry automatico in caso di rate limit Groq.
+    Se Groq risponde con 429/rate-limit, legge il tempo reale da _smart_sleep
+    e riprova. Dopo max_retries tentativi falliti rilancia l'eccezione.
+    """
+    for attempt in range(1, max_retries + 1):
+        try:
+            result = fn(*args, **kwargs)
+            return result
+        except Exception as e:
+            err_str = str(e).lower()
+            is_rate_limit = (
+                "rate_limit" in err_str or
+                "rate limit" in err_str or
+                "429" in err_str or
+                "try again in" in err_str or
+                "too many requests" in err_str
+            )
+            if is_rate_limit and attempt < max_retries:
+                logger.warning(f"[RATE LIMIT] Tentativo {attempt}/{max_retries} — {e}")
+                _smart_sleep(str(e), fallback=fallback)
+            else:
+                raise
+
+
 class SupervisorAgent:
     """
     Controller Multi-Agente V5 (Ibrido: Gemini + Qwen).
@@ -64,9 +123,14 @@ class SupervisorAgent:
         # ── Step 1: Analisi Macro ─────────────────────────────────────
         if Calibrazione.AGENT_MACRO_ENABLED:
             query_macro = f"{nome_asset} news and global macro sentiment"
-            macro_sentiment = self.macro_expert.analizza(query_macro, start_date=start_date, end_date=end_date, symbol=nome_asset)
-            logger.info("Sentiment Macro ottenuto. Attesa 25s...")
-            time.sleep(25)
+            macro_sentiment = _call_with_retry(
+                self.macro_expert.analizza,
+                query_macro,
+                start_date=start_date,
+                end_date=end_date,
+                symbol=nome_asset
+            )
+            logger.success("Sentiment Macro ottenuto.")
         else:
             logger.info("[SUPERVISORE] Analisi Macro disattivata. Salto lo Step 1.")
             macro_sentiment = "ANALISI MACRO DISATTIVATA — bias direzionale non disponibile."
@@ -169,31 +233,28 @@ DATI 1D — LUNGO TERMINE ({len(df_1d_all)} giorni — intero periodo selezionat
             logger.info(f"Interrogazione {nome}...")
             try:
                 if nome == "Volume Analyst":
-                    # Il Volume Agent è il filtro finale: gli passiamo i risultati
-                    # effettivi degli altri 3 specialisti già completati, così può
-                    # validare i segnali reali (non solo i nomi delle tecniche selezionate).
                     altri_risultati = {
                         k: v for k, v in results_tech.items()
                         if v not in ("Analisi Disattivata", "N/D", "")
                     }
-                    results_tech[nome] = agente.analizza(
+                    results_tech[nome] = _call_with_retry(
+                        agente.analizza,
                         ctx_summary, macro_sentiment,
                         skills_guidance=guidance,
                         other_analyses=altri_risultati
                     )
                 else:
-                    results_tech[nome] = agente.analizza(ctx_summary, macro_sentiment, skills_guidance=guidance)
+                    results_tech[nome] = _call_with_retry(
+                        agente.analizza,
+                        ctx_summary, macro_sentiment,
+                        skills_guidance=guidance
+                    )
+                logger.success(f"Risposta {nome} ricevuta.")
             except Exception as e:
                 logger.error(f"[SUPERVISORE] Errore {nome}: {e}")
                 results_tech[nome] = f"❌ Errore durante l'analisi: {e}"
 
-            logger.info(f"Risposta {nome} ricevuta. Attesa 25s...")
-            time.sleep(25)
-
         # ── Classificazione tecniche applicate vs. consultate ─────────────
-        # Per ogni dominio, scansiona il testo del rispettivo specialista per
-        # capire quali tecniche hanno prodotto segnali (= "applicate") e quali
-        # sono state consultate senza trovare setup rilevanti nel periodo.
         _domain_to_specialist = {
             "pattern": "Pattern Analyst",
             "trend":   "Trend Analyst",
@@ -213,10 +274,7 @@ DATI 1D — LUNGO TERMINE ({len(df_1d_all)} giorni — intero periodo selezionat
             for _book_techs in _techniques_pd.get(_domain, {}).values():
                 for _tech in _book_techs:
                     _name = _tech["name"] if isinstance(_tech, dict) else str(_tech)
-                    # Rimuove note tra parentesi: "1-2-3 Top (Ross)" → "1-2-3 top"
                     _clean = re.sub(r'\s*\([^)]*\)', '', _name.lower()).strip()
-                    # Match solo per frase esatta: evita falsi positivi da keyword
-                    # comuni come "support", "trend", "moving" che compaiono ovunque.
                     if _clean in _text_lower:
                         _applied.append(_name)
             applied_per_domain[_domain] = _applied
@@ -229,12 +287,12 @@ DATI 1D — LUNGO TERMINE ({len(df_1d_all)} giorni — intero periodo selezionat
 
         # ── Step 4: Verdetto Finale (Macro Expert + Skill Synthesizer) ───
         logger.info("Generazione verdetto finale (MacroExpert + trading-verdict-synthesizer)...")
-        verdetto_finale = self.macro_expert.sintetizza_verdetto(
+        verdetto_finale = _call_with_retry(
+            self.macro_expert.sintetizza_verdetto,
             nome_asset, macro_sentiment, results_tech,
             projection_end_date=projection_end_date
         )
-        logger.info("Verdetto generato. Attesa 25s...")
-        time.sleep(25)
+        logger.success("Verdetto finale generato.")
 
         # ── Assemblaggio Report Finale ────────────────────────────────
         if chosen_tools.get("success"):

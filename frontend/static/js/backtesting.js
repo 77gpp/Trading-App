@@ -15,13 +15,13 @@
 // STATO APPLICAZIONE
 // -------------------------------------------------------
 const App = {
-  currentJob:      null,    // ID del job di analisi in corso
+  currentJob: null,    // ID del job di analisi in corso
   pollingInterval: null,    // Intervallo di polling
-  currentData:     [],      // Dati OHLCV caricati
-  currentNews:     [],      // Notizie caricate
-  currentSymbol:   'GC=F',  // Ticker corrente
-  showNews:        false,   // Se mostrare notizie sul grafico
-  calibrazione:    {},      // Parametri calibrazione correnti
+  currentData: [],      // Dati OHLCV caricati
+  currentNews: [],      // Notizie caricate
+  currentSymbol: 'GC=F',  // Ticker corrente
+  showNews: false,   // Se mostrare notizie sul grafico
+  calibrazione: {},      // Parametri calibrazione correnti
   volumeProfileData: null,  // Dati del Volume Profile calcolati dal backend
 };
 
@@ -34,11 +34,11 @@ const AGENTS = {
     icon: '🔍',
     color: '#ff9f43',
     tools: [
-      { id: 'pattern_engulfing',  name: 'Bullish/Bearish Engulfing', defaultColor: '#ff9f43' },
-      { id: 'pattern_triangle',   name: 'Triangoli (Asc/Desc)',      defaultColor: '#ee5a24' },
-      { id: 'pattern_powerbar',   name: 'Power Bars (Joe Ross)',      defaultColor: '#f53b57' },
-      { id: 'pattern_wedge',      name: 'Wedge Rising/Falling',       defaultColor: '#ff6b81' },
-      { id: 'pattern_flag',       name: 'Flag / Pennant',             defaultColor: '#fd9644' },
+      { id: 'pattern_engulfing', name: 'Bullish/Bearish Engulfing', defaultColor: '#ff9f43' },
+      { id: 'pattern_triangle', name: 'Triangoli (Asc/Desc)', defaultColor: '#ee5a24' },
+      { id: 'pattern_powerbar', name: 'Power Bars (Joe Ross)', defaultColor: '#f53b57' },
+      { id: 'pattern_wedge', name: 'Wedge Rising/Falling', defaultColor: '#ff6b81' },
+      { id: 'pattern_flag', name: 'Flag / Pennant', defaultColor: '#fd9644' },
     ]
   },
   trend: {
@@ -46,12 +46,12 @@ const AGENTS = {
     icon: '📈',
     color: '#ffffff',
     tools: [
-      { id: 'sma_20',   name: 'SMA 20',          defaultColor: '#ffffff' },
-      { id: 'sma_50',   name: 'SMA 50',          defaultColor: '#ffffff' },
-      { id: 'sma_200',  name: 'SMA 200',         defaultColor: '#ffffff' },
-      { id: 'ema_20',   name: 'EMA 20',          defaultColor: '#ffffff' },
-      { id: 'ema_50',   name: 'EMA 50',          defaultColor: '#ffffff' },
-      { id: 'supertrend', name: 'SuperTrend',    defaultColor: '#ffffff' },
+      { id: 'sma_20', name: 'SMA 20', defaultColor: '#ffffff' },
+      { id: 'sma_50', name: 'SMA 50', defaultColor: '#ffffff' },
+      { id: 'sma_200', name: 'SMA 200', defaultColor: '#ffffff' },
+      { id: 'ema_20', name: 'EMA 20', defaultColor: '#ffffff' },
+      { id: 'ema_50', name: 'EMA 50', defaultColor: '#ffffff' },
+      { id: 'supertrend', name: 'SuperTrend', defaultColor: '#ffffff' },
     ]
   },
   sr: {
@@ -59,9 +59,9 @@ const AGENTS = {
     icon: '🎯',
     color: '#ffffff',
     tools: [
-      { id: 'pivot_points',     name: 'Pivot Points',           defaultColor: '#ffffff' },
-      { id: 'fib_retracement',  name: 'Fibonacci Retracement', defaultColor: '#ffffff' },
-      { id: 'psych_levels',     name: 'Livelli Psicologici',   defaultColor: '#ffffff' },
+      { id: 'pivot_points', name: 'Pivot Points', defaultColor: '#ffffff' },
+      { id: 'fib_retracement', name: 'Fibonacci Retracement', defaultColor: '#ffffff' },
+      { id: 'psych_levels', name: 'Livelli Psicologici', defaultColor: '#ffffff' },
     ]
   },
   volume: {
@@ -69,9 +69,9 @@ const AGENTS = {
     icon: '🌊',
     color: '#fd79a8',
     tools: [
-      { id: 'volume_vsa',     name: 'VSA Volume Bars',   defaultColor: '#fd79a8' },
+      { id: 'volume_vsa', name: 'VSA Volume Bars', defaultColor: '#fd79a8' },
       { id: 'volume_profile', name: 'Volume Profile (VAP)', defaultColor: '#ff7f50' },
-      { id: 'vwap',           name: 'VWAP',              defaultColor: '#e84393' },
+      { id: 'vwap', name: 'VWAP', defaultColor: '#e84393' },
     ]
   },
 };
@@ -103,12 +103,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 // DATE DEFAULT
 // -------------------------------------------------------
 function setDefaultDates() {
-  const end   = new Date();
+  const end = new Date();
   const start = new Date();
   start.setMonth(start.getMonth() - 6);
 
   document.getElementById('startDate').value = start.toISOString().slice(0, 10);
-  document.getElementById('endDate').value   = end.toISOString().slice(0, 10);
+  document.getElementById('endDate').value = end.toISOString().slice(0, 10);
 }
 
 // -------------------------------------------------------
@@ -127,11 +127,11 @@ function buildAgentAccordions() {
 
   // 1. Costruiamo i 4 accordion dinamici con il placeholder
   const dynamicGroups = ['pattern', 'trend', 'sr', 'oscillator'];
-  const dynamicMeta   = {
-    pattern:    { name: 'Pattern Analyst',  icon: '🔍', color: '#ff9f43' },
-    trend:      { name: 'Trend Analyst',    icon: '📈', color: '#00d4aa' },
-    sr:         { name: 'SR Analyst',       icon: '🎯', color: '#a29bfe' },
-    oscillator: { name: 'Oscillatori',      icon: '〰️', color: '#74b9ff' },
+  const dynamicMeta = {
+    pattern: { name: 'Pattern Analyst', icon: '🔍', color: '#ff9f43' },
+    trend: { name: 'Trend Analyst', icon: '📈', color: '#00d4aa' },
+    sr: { name: 'SR Analyst', icon: '🎯', color: '#a29bfe' },
+    oscillator: { name: 'Oscillatori', icon: '〰️', color: '#74b9ff' },
   };
 
   dynamicGroups.forEach(key => {
@@ -307,11 +307,11 @@ function buildDynamicAccordions(chosenTools) {
                  class="color-picker"
                  id="color-${tool.id}"
                  value="${(() => {
-                   const c = (tool.color || '').toLowerCase().trim();
-                   // Se è vuoto, nullo o qualsiasi variante di nero (#000, #000000, black), usiamo bianco.
-                   if (!c || c === '#000000' || c === '#000' || c === 'black') return '#ffffff';
-                   return tool.color;
-                 })()}"
+        const c = (tool.color || '').toLowerCase().trim();
+        // Se è vuoto, nullo o qualsiasi variante di nero (#000, #000000, black), usiamo bianco.
+        if (!c || c === '#000000' || c === '#000' || c === 'black') return '#ffffff';
+        return tool.color;
+      })()}"
                  title="Colore indicatore"
                  onchange="onColorChange('${tool.id}')">
         </div>
@@ -330,8 +330,8 @@ function buildDynamicAccordions(chosenTools) {
     // shownIds: overlay AI-selezionati CON dato computabile (già nella sezione grafica)
     // allAiIds: TUTTI gli overlay AI-selezionati, inclusi quelli senza dato al build-time
     // (un tool AI-selezionato senza dato al build-time non deve finire in "Consultati")
-    const shownIds    = new Set(tools.map(t => t.id));
-    const allAiIds    = new Set((chosenTools[key] || []).map(t => t.id));
+    const shownIds = new Set(tools.map(t => t.id));
+    const allAiIds = new Set((chosenTools[key] || []).map(t => t.id));
     const bookSection = (key !== 'oscillator')
       ? buildBookTechniquesSection(key, chosenTools.techniques_per_domain, shownIds, allAiIds, App.currentData, App.volumeProfileData)
       : '';
@@ -348,7 +348,7 @@ function buildDynamicAccordions(chosenTools) {
 
     // Volume box non ha sezione grafica con overlay già mostrati → Set vuoto per shownIds
     // Passa comunque gli ID AI-selezionati per il volume per escluderli dai "Consultati"
-    const volAiIds       = new Set((chosenTools['volume'] || []).map(t => t.id));
+    const volAiIds = new Set((chosenTools['volume'] || []).map(t => t.id));
     const volBookSection = buildBookTechniquesSection('volume', chosenTools.techniques_per_domain, new Set(), volAiIds, App.currentData, App.volumeProfileData);
     if (volBookSection) {
       volBody.insertAdjacentHTML('beforeend', volBookSection);
@@ -356,11 +356,11 @@ function buildDynamicAccordions(chosenTools) {
   }
 
   // Riceviamo il totale filtrato per il toast informativo
-  const activePattern    = (chosenTools['pattern'] || []).filter(t => TradingChart.computeOverlayData(t.id, App.currentData, App.volumeProfileData)).length;
-  const activeTrend      = (chosenTools['trend'] || []).filter(t => TradingChart.computeOverlayData(t.id, App.currentData, App.volumeProfileData)).length;
-  const activeSR         = (chosenTools['sr'] || []).filter(t => TradingChart.computeOverlayData(t.id, App.currentData, App.volumeProfileData)).length;
+  const activePattern = (chosenTools['pattern'] || []).filter(t => TradingChart.computeOverlayData(t.id, App.currentData, App.volumeProfileData)).length;
+  const activeTrend = (chosenTools['trend'] || []).filter(t => TradingChart.computeOverlayData(t.id, App.currentData, App.volumeProfileData)).length;
+  const activeSR = (chosenTools['sr'] || []).filter(t => TradingChart.computeOverlayData(t.id, App.currentData, App.volumeProfileData)).length;
   const activeOscillator = (chosenTools['oscillator'] || []).filter(t => TradingChart.computeOscillatorData(t.id, App.currentData).length > 0).length;
-  const totalActive      = activePattern + activeTrend + activeSR + activeOscillator;
+  const totalActive = activePattern + activeTrend + activeSR + activeOscillator;
 
   showToast(`🔍 Trovati ${totalActive} segnali dagli agenti — selezionali per vederli`, 'info', 6000);
 
@@ -404,14 +404,14 @@ function buildBookTechniquesSection(domain, techPerDomain, shownOverlayIds = new
   // 2. Tecniche con overlay_id NON AI-selezionato MA con dati computabili → applicati, checkbox
   // 3. Tecniche con overlay_id NON AI-selezionato E senza dati → consultati, checkbox grigi
   const conceptualTechs = [];  // {techName}
-  const appliedVisual    = [];  // {techName, overlayId} — con dati
-  const consultedVisual  = [];  // {techName, overlayId} — senza dati
+  const appliedVisual = [];  // {techName, overlayId} — con dati
+  const consultedVisual = [];  // {techName, overlayId} — senza dati
 
   for (const techs of Object.values(domainData)) {
     if (!Array.isArray(techs)) continue;
     for (const tech of techs) {
-      const techName  = typeof tech === 'string' ? tech : (tech.name  || '');
-      const overlayId = typeof tech === 'object'  ? tech.overlay_id : null;
+      const techName = typeof tech === 'string' ? tech : (tech.name || '');
+      const overlayId = typeof tech === 'object' ? tech.overlay_id : null;
 
       if (!overlayId) {
         // Tecnica puramente concettuale (nessun overlay grafico disponibile)
@@ -433,8 +433,8 @@ function buildBookTechniquesSection(domain, techPerDomain, shownOverlayIds = new
     }
   }
 
-  const hasConcepts  = conceptualTechs.length > 0;
-  const hasApplied   = appliedVisual.length > 0;
+  const hasConcepts = conceptualTechs.length > 0;
+  const hasApplied = appliedVisual.length > 0;
   const hasConsulted = consultedVisual.length > 0;
   if (!hasConcepts && !hasApplied && !hasConsulted) return '';
 
@@ -444,8 +444,8 @@ function buildBookTechniquesSection(domain, techPerDomain, shownOverlayIds = new
         <div style="font-size:9px;color:#64748b;margin-bottom:3px;letter-spacing:0.03em;">Tecniche concettuali analizzate</div>
         <div style="line-height:1.8;">
           ${conceptualTechs.map(({ techName }) =>
-            `<span style="display:inline-block;background:rgba(116,185,255,0.08);border:1px solid rgba(116,185,255,0.2);border-radius:3px;padding:1px 6px;margin:2px 2px;font-size:9px;color:#74b9ff;line-height:1.5;">${techName}</span>`
-          ).join('')}
+      `<span style="display:inline-block;background:rgba(116,185,255,0.08);border:1px solid rgba(116,185,255,0.2);border-radius:3px;padding:1px 6px;margin:2px 2px;font-size:9px;color:#74b9ff;line-height:1.5;">${techName}</span>`
+    ).join('')}
         </div>
       </div>`
     : '';
@@ -537,10 +537,10 @@ function buildBookTechniquesSection(domain, techPerDomain, shownOverlayIds = new
 
   // ── Header riepilogo ──────────────────────────────────────────────────────
   const numBooks = Object.keys(domainData).length;
-  const summary  = [
-    hasConcepts  ? `${conceptualTechs.length} concettuali` : '',
-    hasApplied   ? `${appliedCount} applicati`             : '',
-    hasConsulted ? `${consultedCount} consultati`          : '',
+  const summary = [
+    hasConcepts ? `${conceptualTechs.length} concettuali` : '',
+    hasApplied ? `${appliedCount} applicati` : '',
+    hasConsulted ? `${consultedCount} consultati` : '',
   ].filter(Boolean).join(' · ') || '—';
 
   return `
@@ -597,9 +597,9 @@ function toggleAccordion(agentKey) {
 const OSCILLATOR_IDS = new Set(['rsi', 'macd_line', 'macd_signal', 'stochastic_k', 'stochastic_d', 'williams_r']);
 
 function onToolToggle(checkbox, options = {}) {
-  const toolId   = checkbox.dataset.toolId;
+  const toolId = checkbox.dataset.toolId;
   const toolName = checkbox.dataset.toolName;
-  const color    = document.getElementById(`color-${toolId}`)?.value || '#ffffff';
+  const color = document.getElementById(`color-${toolId}`)?.value || '#ffffff';
   const isSilent = options.silent === true;
 
   // Gestione visibilità pannello extra VAP
@@ -661,21 +661,21 @@ function refreshVap() {
   const checkbox = document.getElementById('tool-volume_profile');
   if (!checkbox || !checkbox.checked) return;
 
-  const mode  = document.getElementById('vap-mode').value;
+  const mode = document.getElementById('vap-mode').value;
   const color = document.getElementById('color-volume_profile').value;
-  
+
   const fixedRangeCtrls = document.getElementById('vap-fixed-range-controls');
   if (fixedRangeCtrls) {
-      if (mode === 'fixed') {
-          fixedRangeCtrls.style.display = 'block';
-      } else {
-          fixedRangeCtrls.style.display = 'none';
-          if (window.TradingChart && typeof TradingChart.cancelFixedRangeSelection === 'function') {
-              TradingChart.cancelFixedRangeSelection();
-          }
-          const statusEl = document.getElementById('vap-fixed-range-status');
-          if (statusEl) statusEl.style.display = 'none';
+    if (mode === 'fixed') {
+      fixedRangeCtrls.style.display = 'block';
+    } else {
+      fixedRangeCtrls.style.display = 'none';
+      if (window.TradingChart && typeof TradingChart.cancelFixedRangeSelection === 'function') {
+        TradingChart.cancelFixedRangeSelection();
       }
+      const statusEl = document.getElementById('vap-fixed-range-status');
+      if (statusEl) statusEl.style.display = 'none';
+    }
   }
 
   // Chiamiamo il metodo del grafico passando le opzioni
@@ -686,9 +686,9 @@ function clearAgentTools(event, agentKey) {
   if (event) event.stopPropagation(); // Evita di chiudere/aprire l'accordion
 
   // Supporto per gruppi dinamici (pattern/trend/sr) e statici (volume)
-  const body = document.getElementById(`body-${agentKey}`) || 
-               (document.getElementById(`accordion-${agentKey}`)?.querySelector('.accordion-body'));
-  
+  const body = document.getElementById(`body-${agentKey}`) ||
+    (document.getElementById(`accordion-${agentKey}`)?.querySelector('.accordion-body'));
+
   if (body) {
     body.querySelectorAll('.tool-checkbox').forEach(cb => {
       if (cb.checked) {
@@ -702,30 +702,30 @@ function clearAgentTools(event, agentKey) {
 }
 
 function enableFixedRangeSelection() {
-    const statusEl = document.getElementById('vap-fixed-range-status');
-    const mode = document.getElementById('vap-mode').value;
-    if (mode !== 'fixed') return;
+  const statusEl = document.getElementById('vap-fixed-range-status');
+  const mode = document.getElementById('vap-mode').value;
+  if (mode !== 'fixed') return;
 
-    if (statusEl) {
-        statusEl.style.display = 'block';
-        statusEl.textContent = 'Clicca candela INIZIO...';
-    }
-    
-    if (window.TradingChart && typeof TradingChart.startFixedRangeSelection === 'function') {
-        TradingChart.startFixedRangeSelection((startInfo) => {
-             // onFirstClick
-             if (statusEl) statusEl.textContent = 'Clicca candela FINE...';
-        }, (start, end) => {
-             // onComplete
-             if (statusEl) {
-                 statusEl.style.display = 'none';
-             }
-             refreshVap(); // Disegna il nuovo intervallo
-        }, (msg) => {
-             // onError
-             if (statusEl) statusEl.textContent = msg;
-        });
-    }
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.textContent = 'Clicca candela INIZIO...';
+  }
+
+  if (window.TradingChart && typeof TradingChart.startFixedRangeSelection === 'function') {
+    TradingChart.startFixedRangeSelection((startInfo) => {
+      // onFirstClick
+      if (statusEl) statusEl.textContent = 'Clicca candela FINE...';
+    }, (start, end) => {
+      // onComplete
+      if (statusEl) {
+        statusEl.style.display = 'none';
+      }
+      refreshVap(); // Disegna il nuovo intervallo
+    }, (msg) => {
+      // onError
+      if (statusEl) statusEl.textContent = msg;
+    });
+  }
 }
 
 function onColorChange(toolId) {
@@ -741,7 +741,7 @@ function onColorChange(toolId) {
 // -------------------------------------------------------
 function setupSymbolAutocomplete() {
   const input = document.getElementById('symbolInput');
-  const list  = document.getElementById('autocompleteList');
+  const list = document.getElementById('autocompleteList');
   if (!input || !list) return;
 
   let debounceTimer;
@@ -757,7 +757,7 @@ function setupSymbolAutocomplete() {
 
     debounceTimer = setTimeout(async () => {
       try {
-        const res  = await fetch(`/api/data/search?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`/api/data/search?q=${encodeURIComponent(q)}`);
         const data = await res.json();
 
         if (data.results && data.results.length > 0) {
@@ -771,7 +771,7 @@ function setupSymbolAutocomplete() {
         } else {
           list.style.display = 'none';
         }
-      } catch(e) {
+      } catch (e) {
         list.style.display = 'none';
       }
     }, 300);
@@ -787,9 +787,9 @@ function setupSymbolAutocomplete() {
 
 function selectSymbol(ticker, name) {
   const input = document.getElementById('symbolInput');
-  const list  = document.getElementById('autocompleteList');
+  const list = document.getElementById('autocompleteList');
   if (input) input.value = ticker;
-  if (list)  list.style.display = 'none';
+  if (list) list.style.display = 'none';
   App.currentSymbol = ticker;
   updateTickerBadge(ticker);
 }
@@ -804,7 +804,7 @@ function updateTickerBadge(ticker) {
 // -------------------------------------------------------
 async function loadCalibrazioneFromBackend() {
   try {
-    const res  = await fetch('/api/data/calibrazione');
+    const res = await fetch('/api/data/calibrazione');
     const data = await res.json();
     App.calibrazione = data;
 
@@ -821,7 +821,7 @@ async function loadCalibrazioneFromBackend() {
         el.value = val;
       }
     });
-  } catch(e) {
+  } catch (e) {
     console.warn('[APP] Impossibile caricare calibrazione:', e);
   }
 }
@@ -864,7 +864,7 @@ function setupEventListeners() {
 
   // Slider proiezione
   const projSlider = document.getElementById('projectionDays');
-  const projValue  = document.getElementById('projectionValue');
+  const projValue = document.getElementById('projectionValue');
   if (projSlider && projValue) {
     projSlider.addEventListener('input', () => {
       projValue.textContent = projSlider.value + ' giorni';
@@ -883,9 +883,9 @@ function setupEventListeners() {
 
   // Toggle timeframe (Custom Dropdown)
   const tfDropdown = document.getElementById('timeframeDropdown');
-  const tfTrigger  = document.getElementById('timeframeTrigger');
-  const tfMenu     = document.getElementById('timeframeMenu');
-  
+  const tfTrigger = document.getElementById('timeframeTrigger');
+  const tfMenu = document.getElementById('timeframeMenu');
+
   if (tfTrigger && tfMenu) {
     tfTrigger.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -896,7 +896,7 @@ function setupEventListeners() {
       item.addEventListener('click', () => {
         const value = item.dataset.value;
         const label = item.dataset.label;
-        const code  = item.querySelector('.item-code').textContent;
+        const code = item.querySelector('.item-code').textContent;
 
         // Aggiorna UI attiva
         document.querySelectorAll('#timeframeMenu .dropdown-item').forEach(i => i.classList.remove('active'));
@@ -904,7 +904,7 @@ function setupEventListeners() {
 
         // Aggiorna Trigger
         document.getElementById('currentTimeframeLabel').textContent = label;
-        document.getElementById('currentTimeframeCode').textContent  = code;
+        document.getElementById('currentTimeframeCode').textContent = code;
 
         // Chiudi menu
         tfDropdown.classList.remove('open');
@@ -954,9 +954,9 @@ function setupEventListeners() {
       if (quickProjToggle.checked) {
         if (App.currentData && App.currentData.length > 0) {
           const symbol = App.currentSymbol;
-          const end    = document.getElementById('endDate').value;
-          const days   = parseInt(document.getElementById('projectionDays')?.value || 30);
-          
+          const end = document.getElementById('endDate').value;
+          const days = parseInt(document.getElementById('projectionDays')?.value || 30);
+
           await loadProjection(symbol, end, days);
           await loadRealAfterData(symbol, end);
         }
@@ -999,7 +999,7 @@ function setupEventListeners() {
   if (appLayout && collapseBtn && expandBtn) {
     const toggleSidebar = () => {
       appLayout.classList.toggle('sidebar-collapsed');
-      
+
       // Piccolo trick: forziamo il resize del grafico dopo la transizione CSS
       // per assicurarci che Lightweight Charts si adatti al nuovo spazio.
       setTimeout(() => {
@@ -1015,7 +1015,7 @@ function setupEventListeners() {
   const reportArea = document.getElementById('reportArea');
   const minBtn = document.getElementById('minimizeReportBtn');
   const fullBtn = document.getElementById('fullscreenReportBtn');
-  
+
   if (reportArea && minBtn && fullBtn) {
     const triggerResize = () => {
       setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 310);
@@ -1067,8 +1067,8 @@ function renderNewsSidebar() {
 
   // Filtriamo l'array globale delle notizie
   const filtered = App.currentNews.filter(n => {
-    const matchText = n.headline.toLowerCase().includes(searchText) || 
-                      (n.source && n.source.toLowerCase().includes(searchText));
+    const matchText = n.headline.toLowerCase().includes(searchText) ||
+      (n.source && n.source.toLowerCase().includes(searchText));
     const matchDate = filterDate ? n.date === filterDate : true;
     return matchText && matchDate;
   });
@@ -1084,7 +1084,7 @@ function renderNewsSidebar() {
     const isDDG = n.provider === 'duckduckgo';
     const accentColor = isDDG ? '#3fbef5' : '#ffa502';
     const icon = isDDG ? '🌐' : '📰';
-    
+
     return `
       <div class="news-card" onclick="window.open('${n.url}', '_blank')" style="background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255,255,255,0.05); border-left: 3px solid ${accentColor}; border-radius: 6px; padding: 8px; cursor: pointer; transition: all 0.2s ease; position: relative; margin-bottom: 8px;">
         <div style="font-size: 10px; color: ${accentColor}; font-weight: bold; margin-bottom: 2px; display: flex; justify-content: space-between;">
@@ -1104,9 +1104,9 @@ function renderNewsSidebar() {
 // ANTEPRIMA GRAFICO (senza analisi AI)
 // -------------------------------------------------------
 async function loadChartPreview() {
-  const symbol   = document.getElementById('symbolInput').value.trim() || 'GC=F';
-  const start    = document.getElementById('startDate').value;
-  const end      = document.getElementById('endDate').value;
+  const symbol = document.getElementById('symbolInput').value.trim() || 'GC=F';
+  const start = document.getElementById('startDate').value;
+  const end = document.getElementById('endDate').value;
   const interval = document.querySelector('#timeframeMenu .dropdown-item.active')?.dataset.value || '1d';
 
   if (!start || !end) {
@@ -1146,19 +1146,24 @@ async function loadChartPreview() {
 
     // 3. Proiezioni Veloci (Facoltative)
     const quickProjEnabled = document.getElementById('showQuickProjections')?.checked;
-    
-    if (quickProjEnabled) {
-      // 3a. Proiezione statistica
-      await loadProjection(symbol, end, parseInt(document.getElementById('projectionDays')?.value || 30));
 
-      // 3b. Dati reali dopo la data di fine (verifica)
+    if (quickProjEnabled) {
+      // 3a. Proiezione statistica (solo se toggle attivo)
+      await loadProjection(symbol, end, parseInt(document.getElementById('projectionDays')?.value || 30));
+    }
+
+    // 3b. Dati reali dopo la data di fine — SEMPRE se endDate < oggi
+    const _endCheck = new Date(end);
+    const _today = new Date();
+    _today.setHours(0, 0, 0, 0);
+    if (_endCheck < _today) {
       await loadRealAfterData(symbol, end);
     }
 
     hideChartLoader();
     showToast(`${data.candles.length} candele caricate per ${data.ticker}`, 'success');
 
-  } catch(e) {
+  } catch (e) {
     hideChartLoader();
     showToast(`Errore di connessione: ${e.message}`, 'error');
   }
@@ -1170,13 +1175,13 @@ async function loadChartPreview() {
 async function loadNewsForChart(symbol, start, end) {
   try {
     const limit = document.getElementById('calib-ALPACA_NEWS_LIMIT')?.value || 300;
-    const res  = await fetch(
+    const res = await fetch(
       `/api/data/news?symbol=${encodeURIComponent(symbol)}&start=${start}&end=${end}&limit=${limit}`
     );
     const data = await res.json();
 
     App.currentNews = data.news || [];
-    
+
     // Renderizziamo subito la sidebar
     renderNewsSidebar();
 
@@ -1187,7 +1192,7 @@ async function loadNewsForChart(symbol, start, end) {
       TradingChart.drawNewsMarkers(App.currentNews);
       showToast(`${App.currentNews.length} notizie caricate`, 'info', 3000);
     }
-  } catch(e) {
+  } catch (e) {
     console.warn('[APP] Notizie non disponibili:', e);
   }
 }
@@ -1197,7 +1202,7 @@ async function loadNewsForChart(symbol, start, end) {
 // -------------------------------------------------------
 async function loadProjection(symbol, endDate, days) {
   try {
-    const res  = await fetch('/api/backtest/projection', {
+    const res = await fetch('/api/backtest/projection', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ symbol, end: endDate, days })
@@ -1210,7 +1215,7 @@ async function loadProjection(symbol, endDate, days) {
       // Aggiorna leggenda
       updateLegend();
     }
-  } catch(e) {
+  } catch (e) {
     console.warn('[APP] Proiezione non disponibile:', e);
   }
 }
@@ -1222,9 +1227,9 @@ async function loadRealAfterData(symbol, endDate) {
   try {
     // Scarichiamo i 60 giorni successivi alla data di fine per confronto
     const endDateObj = new Date(endDate);
-    const realStart  = new Date(endDate);
+    const realStart = new Date(endDate);
     realStart.setDate(realStart.getDate() + 1);
-    const realEnd    = new Date(endDateObj);
+    let realEnd = new Date(endDateObj);
     realEnd.setDate(realEnd.getDate() + 90);
 
     if (realEnd > new Date()) {
@@ -1234,14 +1239,17 @@ async function loadRealAfterData(symbol, endDate) {
     if (realStart >= realEnd) return; // Non ci sono dati futuri disponibili
 
     const res = await fetch(
-      `/api/data/chart?symbol=${encodeURIComponent(symbol)}&start=${realStart.toISOString().slice(0,10)}&end=${realEnd.toISOString().slice(0,10)}&interval=1d`
+      `/api/data/chart?symbol=${encodeURIComponent(symbol)}&start=${realStart.toISOString().slice(0, 10)}&end=${realEnd.toISOString().slice(0, 10)}&interval=1d`
     );
     const data = await res.json();
 
     if (data.candles && data.candles.length > 0) {
-      TradingChart.drawRealAfterProjection(data.candles);
+      // Candela ponte: aggancia la linea blu all'ultima candela dell'analisi storica
+      const lastCandle = App.currentData[App.currentData.length - 1];
+      const bridgeCandle = { time: lastCandle.time, close: lastCandle.close };
+      TradingChart.drawRealAfterProjection([bridgeCandle, ...data.candles]);
     }
-  } catch(e) {
+  } catch (e) {
     console.warn('[APP] Dati reali post-backtest non disponibili:', e);
   }
 }
@@ -1250,11 +1258,11 @@ async function loadRealAfterData(symbol, endDate) {
 // AVVIO ANALISI AI (BACKTESTING COMPLETO)
 // -------------------------------------------------------
 async function runBacktest() {
-  const symbol         = document.getElementById('symbolInput').value.trim() || 'GC=F';
-  const start          = document.getElementById('startDate').value;
-  const end            = document.getElementById('endDate').value;
+  const symbol = document.getElementById('symbolInput').value.trim() || 'GC=F';
+  const start = document.getElementById('startDate').value;
+  const end = document.getElementById('endDate').value;
   const projectionDays = parseInt(document.getElementById('projectionDays')?.value || 30);
-  const interval       = document.querySelector('#timeframeMenu .dropdown-item.active')?.dataset.value || '1d';
+  const interval = document.querySelector('#timeframeMenu .dropdown-item.active')?.dataset.value || '1d';
 
   if (!start || !end) {
     showToast('Seleziona le date di inizio e fine', 'warning');
@@ -1274,12 +1282,12 @@ async function runBacktest() {
 
   const runBtn = document.getElementById('runBacktestBtn');
   const stopBtn = document.getElementById('stopBacktestBtn');
-  
+
   if (runBtn) {
     runBtn.disabled = true;
     runBtn.innerHTML = '<span class="btn-spinner" style="width:16px;height:16px;border:2px solid #000;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;display:inline-block"></span> Analisi...';
   }
-  
+
   if (stopBtn) {
     stopBtn.disabled = false;
   }
@@ -1288,7 +1296,7 @@ async function runBacktest() {
 
   try {
     const res = await fetch('/api/backtest/run', {
-      method:  'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         symbol,
@@ -1309,12 +1317,12 @@ async function runBacktest() {
     }
 
     App.currentJob = data.job_id;
-    showToast(`Analisi avviata! Job ID: ${data.job_id.slice(0,8)}...`, 'info');
+    showToast(`Analisi avviata! Job ID: ${data.job_id.slice(0, 8)}...`, 'info');
 
     // Iniziamo il polling ogni 5 secondi
     startPolling(data.job_id, { symbol, start, end });
 
-  } catch(e) {
+  } catch (e) {
     showToast(`Errore di connessione: ${e.message}`, 'error');
     resetRunButtons();
   }
@@ -1325,26 +1333,26 @@ async function runBacktest() {
  */
 async function stopBacktest() {
   if (!App.currentJob) return;
-  
+
   const jobId = App.currentJob;
   const stopBtn = document.getElementById('stopBacktestBtn');
-  
+
   if (stopBtn) {
     stopBtn.disabled = true;
     stopBtn.innerHTML = '<span class="btn-spinner" style="width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;display:inline-block"></span> Interruzione...';
   }
-  
+
   try {
     const res = await fetch(`/api/backtest/cancel/${jobId}`, { method: 'POST' });
     const data = await res.json();
-    
+
     if (data.status === 'cancelled') {
-        clearInterval(App.pollingInterval);
-        App.currentJob = null;
-        
-        TradingReport.placeholder('🛑 Analisi interrotta dall\'utente.');
-        showToast('Analisi interrotta con successo', 'info');
-        resetRunButtons();
+      clearInterval(App.pollingInterval);
+      App.currentJob = null;
+
+      TradingReport.placeholder('🛑 Analisi interrotta dall\'utente.');
+      showToast('Analisi interrotta con successo', 'info');
+      resetRunButtons();
     }
   } catch (e) {
     console.error('[APP] Stop Error:', e);
@@ -1372,7 +1380,7 @@ function startPolling(jobId, config) {
     }
 
     try {
-      const res  = await fetch(`/api/backtest/status/${jobId}`);
+      const res = await fetch(`/api/backtest/status/${jobId}`);
       const data = await res.json();
 
       if (data.status === 'done') {
@@ -1416,7 +1424,7 @@ function startPolling(jobId, config) {
         showToast(`Errore analisi: ${data.error}`, 'error');
       }
 
-    } catch(e) {
+    } catch (e) {
       console.error('[APP] Polling error:', e);
     }
   }, 5000);
@@ -1425,12 +1433,12 @@ function startPolling(jobId, config) {
 function resetRunButtons() {
   const runBtn = document.getElementById('runBacktestBtn');
   const stopBtn = document.getElementById('stopBacktestBtn');
-  
+
   if (runBtn) {
     runBtn.disabled = false;
     runBtn.innerHTML = '🚀 Start Analisi AI';
   }
-  
+
   if (stopBtn) {
     stopBtn.disabled = true;
     stopBtn.innerHTML = '🛑 Stop Analisi AI';
