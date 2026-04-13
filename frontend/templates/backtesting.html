@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Trading AI App — Backtesting intelligente con analisi multi-agente, notizie Alpaca e dati Yahoo Finance">
+  <title>Trading AI App — Backtesting</title>
+
+  <!-- CSS Principale -->
+  <link rel="stylesheet" href="/static/css/main.css">
+
+  <!-- TradingView Lightweight Charts (libreria grafica open-source) -->
+  <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+
+<!-- ============================================================
+     NAVBAR
+     ============================================================ -->
+<nav class="navbar">
+  <a class="navbar-brand" href="/">
+    <div class="brand-icon">📊</div>
+    <span class="brand-name">Trading AI</span>
+    <span class="brand-version">v2.0</span>
+  </a>
+
+  <nav class="navbar-nav">
+    <a href="/backtesting" class="nav-link active" id="nav-backtest">
+      🧪 Backtesting
+    </a>
+    <a href="#" class="nav-link" id="nav-live" style="opacity:0.5;cursor:not-allowed" title="In sviluppo">
+      📡 Live Analysis
+    </a>
+  </nav>
+
+  <div class="navbar-spacer"></div>
+
+  <div class="navbar-status">
+    <div class="status-dot"></div>
+    <span>Sistema Operativo</span>
+  </div>
+</nav>
+
+<!-- ============================================================
+     LAYOUT PRINCIPALE
+     ============================================================ -->
+<div class="app-layout" id="appLayout">
+  <!-- Pulsante per riaprire la sidebar quando è collassata -->
+  <button class="sidebar-expand-btn" id="sidebarExpandBtn" title="Espandi pannello">
+    <span>➡️</span>
+  </button>
+
+  <!-- ======================================================
+       SIDEBAR — Pannello di Controllo
+       ====================================================== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">⚙️ Configurazione Backtesting</div>
+      <button class="sidebar-toggle" id="sidebarCollapseBtn" title="Chiudi pannello">
+        <span class="toggle-icon">⬅️</span>
+      </button>
+    </div>
+
+    <!-- SEZIONE 1: Strumento Finanziario -->
+    <div class="sidebar-section">
+      <div class="section-label">🔍 Strumento</div>
+
+      <div class="form-group">
+        <label class="form-label" for="symbolInput">Ticker / Nome Asset</label>
+        <div class="input-with-icon" style="position:relative;">
+          <span class="input-icon">🏷️</span>
+          <input type="text"
+                 id="symbolInput"
+                 class="form-control"
+                 placeholder="es. GC=F, oro, AAPL, BTC..."
+                 value="GC=F"
+                 autocomplete="off">
+          <div class="autocomplete-list" id="autocompleteList" style="display:none;position:absolute;"></div>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:4px">
+          Esempi: GC=F (Oro), ^GSPC (S&P500), AAPL, BTC-USD, EURUSD=X
+        </div>
+      </div>
+    </div>
+
+    <!-- SEZIONE 2: Periodo di Analisi -->
+    <div class="sidebar-section">
+      <div class="section-label">📅 Periodo di Analisi</div>
+
+      <div class="form-group">
+        <label class="form-label">Proiezione Futura</label>
+        <div class="slider-group">
+          <input type="range" class="slider" id="projectionDays"
+                 min="1" max="90" value="{{ config_calibrazione.DEFAULT_PROJECTION_DAYS }}" step="1">
+          <span class="slider-value" id="projectionValue">{{ config_calibrazione.DEFAULT_PROJECTION_DAYS }} giorni</span>
+        </div>
+      </div>
+
+      <div class="date-range">
+        <div class="form-group">
+          <label class="form-label" for="startDate">Inizio</label>
+          <input type="date" id="startDate" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="endDate">Fine</label>
+          <input type="date" id="endDate" class="form-control">
+        </div>
+      </div>
+    </div>
+
+    <!-- SEZIONE 3: Visualizzazione Grafico -->
+    <div class="sidebar-section">
+      <div class="section-label">📊 Visualizzazione</div>
+
+      <div class="form-group">
+        <label class="form-label">Tipo Grafico</label>
+        <div class="btn-group">
+          <button class="btn-toggle active" data-chart-type="candlestick">🕯️ Candele</button>
+          <button class="btn-toggle" data-chart-type="line">📈 Linee</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Timeframe</label>
+        <div class="custom-dropdown" id="timeframeDropdown">
+          <button type="button" class="dropdown-trigger" id="timeframeTrigger">
+            <span class="trigger-label" id="currentTimeframeLabel">1 Giorno</span>
+            <span class="trigger-code" id="currentTimeframeCode">1D</span>
+            <span class="dropdown-arrow">▼</span>
+          </button>
+          <div class="dropdown-menu" id="timeframeMenu">
+            <div class="dropdown-group-label">Minuti</div>
+            <div class="dropdown-item" data-value="1m" data-label="1 Minuto">1 Minuto <span class="item-code">1m</span></div>
+            <div class="dropdown-item" data-value="2m" data-label="2 Minuti">2 Minuti <span class="item-code">2m</span></div>
+            <div class="dropdown-item" data-value="5m" data-label="5 Minuti">5 Minuti <span class="item-code">5m</span></div>
+            <div class="dropdown-item" data-value="15m" data-label="15 Minuti">15 Minuti <span class="item-code">15m</span></div>
+            <div class="dropdown-item" data-value="30m" data-label="30 Minuti">30 Minuti <span class="item-code">30m</span></div>
+            
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-group-label">Ore e Giorni</div>
+            <div class="dropdown-item" data-value="1h" data-label="1 Ora">1 Ora <span class="item-code">1h</span></div>
+            <div class="dropdown-item" data-value="4h" data-label="4 Ore">4 Ore <span class="item-code">4h</span></div>
+            <div class="dropdown-item active" data-value="1d" data-label="1 Giorno">1 Giorno <span class="item-code">1D</span></div>
+            
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-group-label">Lungo Periodo</div>
+            <div class="dropdown-item" data-value="1wk" data-label="1 Settimana">1 Settimana <span class="item-code">1W</span></div>
+            <div class="dropdown-item" data-value="1mo" data-label="1 Mese">1 Mese <span class="item-code">1M</span></div>
+            <div class="dropdown-item" data-value="3mo" data-label="3 Mesi">3 Mesi <span class="item-code">3M</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="toggle-row">
+        <span class="toggle-label">📰 Mostra Notizie sul Grafico</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="showNewsToggle">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <span class="toggle-label">🔮 Mostra Proiezioni Rapide</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="showQuickProjections" checked title="Mostra proiezioni statistiche e dati reali di verifica nel periodo futuro">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- SEZIONE 3.5: Archivio Notizie Sidebar -->
+    <div class="sidebar-section">
+      <div class="accordion" id="accordion-news">
+        <div class="accordion-header" onclick="toggleAccordion('news')">
+          <div class="accordion-title">
+            <span class="accordion-icon">📰</span>
+            <span>Archivio Notizie</span>
+            <span id="newsListCount" style="font-size: 10px; background: rgba(59, 130, 246, 0.2); padding: 1px 5px; border-radius: 4px; color: #3b82f6; margin-left: 5px;">0</span>
+          </div>
+          <span class="accordion-arrow">▼</span>
+        </div>
+        <div class="accordion-body">
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+            <input type="text" id="newsFilterSource" placeholder="Filtra fonte o titolo..." style="background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px 10px; color: #fff; font-size: 12px; outline: none; width: 100%; box-sizing: border-box;">
+            <input type="date" id="newsFilterDate" style="background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px 10px; color: #fff; font-size: 12px; outline: none; width: 100%; box-sizing: border-box; color-scheme: dark;">
+          </div>
+          <div id="newsSidebarContainer" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
+            <!-- Le notizie saranno renderizzate qui dal JS -->
+            <div style="text-align: center; color: #64748b; font-size: 12px; font-style: italic; padding: 20px 0;">Nessuna notizia caricata.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEZIONE 4: Agenti e Indicatori Tecnici -->
+    <div class="sidebar-section">
+      <div class="section-label">🤖 Agenti & Indicatori</div>
+      <div id="agentsContainer">
+        <!-- Accordion costruiti dinamicamente da backtesting.js -->
+      </div>
+    </div>
+
+    <!-- SEZIONE 5: Parametri Calibrazione -->
+    <div class="sidebar-section">
+      <div class="section-label">
+        <span>⚙️ Calibrazione</span>
+      </div>
+
+      <button id="toggleCalibBtn" class="btn btn-secondary btn-full" style="margin-bottom:8px;font-size:12px;">
+        Mostra Parametri Avanzati <span class="calib-arrow">▼</span>
+      </button>
+
+      <div id="calibrationPanel" class="calibration-panel">
+
+        <!-- Provider LLM -->
+        <div class="calib-row">
+          <span class="calib-label">Modello AI</span>
+          <select id="calib-LLM_PROVIDER" class="calib-input" style="width:auto;padding:3px 6px;">
+            <option value="qwen" {% if config_calibrazione.LLM_PROVIDER == 'qwen' %}selected{% endif %}>Qwen (Groq)</option>
+            <option value="gemini" {% if config_calibrazione.LLM_PROVIDER == 'gemini' %}selected{% endif %}>Gemini</option>
+          </select>
+        </div>
+
+        <!-- Qwen 3 — Thinking Mode -->
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin:10px 0 6px">Qwen 3 — Thinking Mode</div>
+        <div class="calib-row">
+          <span class="calib-label" title="Se attivo il modello ragiona in profondità prima di rispondere (più lento ma analisi più ricca). Solo per modelli qwen3.">🧠 Thinking Mode</span>
+          <label class="toggle-switch" style="transform:scale(0.85)">
+            <input type="checkbox" id="calib-QWEN_THINKING_ENABLED" {% if config_calibrazione.QWEN_THINKING_ENABLED %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;line-height:1.4;padding:0 2px">
+          <strong>ON</strong>: ragionamento profondo, risposta più ricca (preamble inglese rimosso in post-processing).<br>
+          <strong>OFF</strong>: risposta diretta, più veloce, senza preamble.
+        </div>
+
+        <!-- Agenti on/off -->
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin:10px 0 6px">Agenti Attivi</div>
+        <div class="calib-row">
+          <span class="calib-label">Analisi Macro</span>
+          <label class="toggle-switch" style="transform:scale(0.85)">
+            <input type="checkbox" id="calib-AGENT_MACRO_ENABLED" {% if config_calibrazione.AGENT_MACRO_ENABLED %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="calib-row">
+          <span class="calib-label">Pattern Analyst</span>
+          <label class="toggle-switch" style="transform:scale(0.85)">
+            <input type="checkbox" id="calib-AGENT_PATTERN_ENABLED" {% if config_calibrazione.AGENT_PATTERN_ENABLED %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="calib-row">
+          <span class="calib-label">Trend Analyst</span>
+          <label class="toggle-switch" style="transform:scale(0.85)">
+            <input type="checkbox" id="calib-AGENT_TREND_ENABLED" {% if config_calibrazione.AGENT_TREND_ENABLED %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="calib-row">
+          <span class="calib-label">SR Analyst</span>
+          <label class="toggle-switch" style="transform:scale(0.85)">
+            <input type="checkbox" id="calib-AGENT_SR_ENABLED" {% if config_calibrazione.AGENT_SR_ENABLED %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="calib-row">
+          <span class="calib-label">Volume Analyst</span>
+          <label class="toggle-switch" style="transform:scale(0.85)">
+            <input type="checkbox" id="calib-AGENT_VOLUME_ENABLED" {% if config_calibrazione.AGENT_VOLUME_ENABLED %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <!-- Temperature IA -->
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin:10px 0 6px">Temperature IA (0.0 - 1.0)</div>
+        <div class="calib-row">
+          <span class="calib-label">Knowledge Search</span>
+          <input type="number" id="calib-TEMPERATURE_KNOWLEDGE_SEARCH" class="calib-input" value="{{ config_calibrazione.TEMPERATURE_KNOWLEDGE_SEARCH }}" min="0" max="1" step="0.1">
+        </div>
+        <div class="calib-row">
+          <span class="calib-label">Macro Expert</span>
+          <input type="number" id="calib-TEMPERATURE_MACRO_EXPERT" class="calib-input" value="{{ config_calibrazione.TEMPERATURE_MACRO_EXPERT }}" min="0" max="1" step="0.1">
+        </div>
+        <div class="calib-row">
+          <span class="calib-label">Orchestrator</span>
+          <input type="number" id="calib-TEMPERATURE_TECH_ORCHESTRATOR" class="calib-input" value="{{ config_calibrazione.TEMPERATURE_TECH_ORCHESTRATOR }}" min="0" max="1" step="0.1">
+        </div>
+        <div class="calib-row">
+          <span class="calib-label">Specialists</span>
+          <input type="number" id="calib-TEMPERATURE_TECH_SPECIALISTS" class="calib-input" value="{{ config_calibrazione.TEMPERATURE_TECH_SPECIALISTS }}" min="0" max="1" step="0.1">
+        </div>
+        <div class="calib-row">
+          <span class="calib-label">Skill Selector</span>
+          <input type="number" id="calib-TEMPERATURE_SKILL_SELECTOR" class="calib-input" value="{{ config_calibrazione.TEMPERATURE_SKILL_SELECTOR }}" min="0" max="1" step="0.1">
+        </div>
+
+        <!-- Parametri numerici -->
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin:10px 0 6px">Periodi Analisi</div>
+        <div class="calib-row">
+          <span class="calib-label">Giorni Proiezione Futura</span>
+          <input type="number" id="calib-DEFAULT_PROJECTION_DAYS" class="calib-input" value="{{ config_calibrazione.DEFAULT_PROJECTION_DAYS }}" min="1" max="90">
+        </div>
+
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin:10px 0 6px">Notizie</div>
+        <div class="calib-row">
+          <span class="calib-label">Notizie Alpaca (max)</span>
+          <input type="number" id="calib-ALPACA_NEWS_LIMIT" class="calib-input" value="{{ config_calibrazione.ALPACA_NEWS_LIMIT }}" min="10" max="5000">
+        </div>
+        <div class="calib-row">
+          <span class="calib-label">Risultati DuckDuckGo</span>
+          <input type="number" id="calib-DUCKDUCKGO_NEWS_LIMIT" class="calib-input" value="{{ config_calibrazione.DUCKDUCKGO_NEWS_LIMIT }}" min="1" max="5000">
+        </div>
+      </div>
+    </div>
+
+    <!-- PULSANTI AZIONE -->
+    <button id="previewChartBtn" class="btn btn-secondary btn-full btn-run" style="margin-bottom:4px;">
+      📊 Carica Solo Grafico
+    </button>
+
+    <button id="runBacktestBtn" class="btn btn-primary btn-full btn-run" style="margin-bottom:8px;">
+      🚀 Start Analisi AI
+    </button>
+
+    <button id="stopBacktestBtn" class="btn btn-stop btn-full btn-run" style="margin-top:0" disabled>
+      🛑 Stop Analisi AI
+    </button>
+
+    <div style="padding:8px 20px 16px;font-size:10px;color:var(--text-muted);text-align:center;line-height:1.5">
+      L'analisi AI può richiedere 3-5 minuti.<br>
+      Il grafico viene caricato immediatamente.
+    </div>
+  </aside>
+
+  <!-- ======================================================
+       MAIN CONTENT — Grafico + Report
+       ====================================================== -->
+  <main class="main-content">
+
+    <!-- TOOLBAR GRAFICO -->
+    <div class="chart-toolbar">
+      <div class="chart-toolbar-left">
+        <span class="ticker-badge" id="tickerBadge">GC=F</span>
+        <div class="price-display">
+          <span class="price-current" id="currentPrice">—</span>
+          <span class="price-change" id="priceChange"></span>
+        </div>
+      </div>
+      <div class="chart-toolbar-right">
+        <button id="downloadReportBtn"
+                class="btn btn-secondary"
+                style="font-size:11px;padding:5px 10px;"
+                title="Scarica Report Markdown">
+          ⬇️ Report
+        </button>
+      </div>
+    </div>
+
+    <!-- AREA GRAFICO -->
+    <div class="chart-area">
+      <div id="chartContainer" style="position:relative;flex:1;">
+
+        <!-- Loader overlay del grafico -->
+        <div class="chart-loader hidden" id="chartLoader">
+          <div class="loader-spinner"></div>
+          <div class="loader-text">Caricamento dati...</div>
+          <div class="loader-subtext">Connessione a Yahoo Finance</div>
+          <div class="loader-progress">
+            <div class="loader-progress-bar"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- PANNELLO OSCILLATORI -->
+      <div id="oscillator-panel" style="display:none; flex-direction:column; height:160px; border-top:1px solid rgba(255,255,255,0.07); background:#060b18; position:relative; flex-shrink:0;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:2px 8px; background:rgba(0,0,0,0.3);">
+          <span style="font-size:10px; color:#6b7280; font-family:'Inter',sans-serif; letter-spacing:0.05em;">OSCILLATORI</span>
+          <div id="oscillator-active-labels" style="display:flex; gap:6px; font-size:10px; color:#9ca3af; font-family:'Inter',sans-serif;"></div>
+        </div>
+        <div id="oscillator-chart-container" style="flex:1; width:100%;"></div>
+      </div>
+
+      <!-- LEGGENDA GRAFICO -->
+      <div class="chart-legend" id="chartLegend">
+        <div class="legend-item">
+          <div class="legend-color" id="legend-prezzo-storico" style="background:#3fbef5"></div>
+          <span>Prezzo Storico</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" id="legend-proiezione-ai" style="background:#BB86FC"></div>
+          <span>Proiezione AI</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" id="legend-reale-verifica" style="background:#3fbef5"></div>
+          <span>Reale (verifica)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" id="legend-entry" style="background:#FFFFFF"></div>
+          <span>Entry</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" id="legend-stop-loss" style="background:#CF6679"></div>
+          <span>Stop Loss</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" id="legend-take-profit" style="background:#03F5A9"></div>
+          <span>Take Profit</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" id="legend-notizia" style="background:#ffa502"></div>
+          <span>📰 Notizia</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================
+         AREA REPORT AI
+         ==================================================== -->
+    <div class="report-area" id="reportArea">
+      <div class="report-header">
+        <div class="report-title">
+          <span>📋</span>
+          <span>Report Analisi AI</span>
+        </div>
+        <div class="report-actions">
+          <button id="minimizeReportBtn" class="btn btn-secondary btn-icon-only" title="Minimizza / Ripristina Report">
+            <span class="btn-icon">▼</span>
+          </button>
+          <button id="fullscreenReportBtn" class="btn btn-secondary btn-icon-only" title="Tutto Schermo / Normale">
+            <!-- Icona Espandi (frecce verso l'esterno) -->
+            <svg class="btn-icon icon-max" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <polyline points="9 21 3 21 3 15"></polyline>
+              <line x1="21" y1="3" x2="14" y2="10"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+            <!-- Icona Contrai (frecce verso l'interno) -->
+            <svg class="btn-icon icon-restore" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; display: none;">
+              <polyline points="4 14 10 14 10 20"></polyline>
+              <polyline points="20 10 14 10 14 4"></polyline>
+              <line x1="14" y1="10" x2="21" y2="3"></line>
+              <line x1="10" y1="14" x2="3" y2="21"></line>
+            </svg>
+          </button>
+          <div style="width: 1px; height: 20px; background: var(--border); margin: 0 4px;"></div>
+          <button id="downloadReportBtn2"
+                  class="btn btn-secondary"
+                  style="font-size:11px;padding:4px 8px;"
+                  onclick="App.lastReport && TradingReport.download(App.lastReport, App.currentSymbol)">
+            ⬇️ Scarica
+          </button>
+        </div>
+      </div>
+
+      <div class="report-content" id="reportContent">
+        <div class="report-placeholder">
+          <div class="placeholder-icon">📋</div>
+          <div class="placeholder-text">
+            Seleziona uno strumento, imposta il periodo e avvia il backtesting per vedere il report AI.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ============================================================
+     SCRIPTS
+     ============================================================ -->
+<script src="/static/js/chart.js?v=3.2"></script>
+<script src="/static/js/report.js?v=3.2"></script>
+<script src="/static/js/backtesting.js?v=3.5"></script>
+
+</body>
+</html>

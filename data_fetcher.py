@@ -1,7 +1,6 @@
 import pandas as pd
 import yfinance as yf
 from loguru import logger
-import Calibrazione
 
 class DataFetcher:
     """
@@ -17,7 +16,7 @@ class DataFetcher:
         days: Numero di giorni di storico (opzionale, usa Calibrazione se None)
         """
         if days is None:
-            days = Calibrazione.TECH_LONG_TERM_CANDLES
+            days = 60
             
         logger.info(f"[DATA FETCHER] Download dati reali per {ticker} ({days} giorni)...")
         
@@ -50,9 +49,9 @@ class DataFetcher:
             logger.success(f"[DATA FETCHER] Download completato per {ticker}.")
             
             return {
-                "1h": df_1h_raw.tail(Calibrazione.TECH_SHORT_TERM_CANDLES), # Candele configurabili
-                "4h": df_4h.tail(Calibrazione.TECH_MID_TERM_CANDLES),
-                "1d": df_1d.tail(Calibrazione.TECH_LONG_TERM_CANDLES)
+                "1h": df_1h_raw,
+                "4h": df_4h,
+                "1d": df_1d
             }
             
         except Exception as e:
