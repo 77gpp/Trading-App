@@ -60,7 +60,7 @@ def run_backtest():
           "AGENT_VOLUME_ENABLED":    true
         }
       }
-    
+
     Restituisce:
       { "job_id": "uuid-...", "status": "started" }
     """
@@ -93,7 +93,6 @@ def run_backtest():
         }
     }
 
-    # Avvio analisi in thread separato
     thread = threading.Thread(
         target=_run_analysis_thread,
         args=(job_id, symbol, start, end, projection_days, calibrazione),
@@ -112,8 +111,8 @@ def run_backtest():
 def get_status(job_id: str):
     """
     Restituisce lo stato corrente del job:
-      - running : analisi in corso (il frontend mostra il loader)
-      - done    : analisi completata (il frontend mostra il report)
+      - running : analisi in corso
+      - done    : analisi completata
       - error   : qualcosa è andato storto
     """
     if job_id not in JOBS:
@@ -143,18 +142,15 @@ def get_status(job_id: str):
 # ------------------------------------------------------------------
 @backtesting_bp.route("/cancel/<job_id>", methods=["POST"])
 def cancel_job(job_id: str):
-    """
-    Inserisce il job nella lista dei cancellati.
-    """
     if job_id not in JOBS:
         return jsonify({"error": "Job non trovato"}), 404
-    
+
     if JOBS[job_id]["status"] not in ["running"]:
-         return jsonify({"info": "Il job non è in esecuzione", "status": JOBS[job_id]["status"]})
+        return jsonify({"info": "Il job non è in esecuzione", "status": JOBS[job_id]["status"]})
 
     CANCELLED_JOBS.add(job_id)
     JOBS[job_id]["status"] = "cancelled"
-    
+
     logger.warning(f"[BACKTEST] Job {job_id} annullato dall'utente.")
     return jsonify({"job_id": job_id, "status": "cancelled"})
 
@@ -165,15 +161,10 @@ def cancel_job(job_id: str):
 @backtesting_bp.route("/projection", methods=["POST"])
 def get_projection():
     """
-    Calcola una proiezione statistica del prezzo usando:
-    - Media mobile esponenziale (EMA) per la direzione
-    - Deviazione standard per le bande di confidenza
-    
+    Calcola una proiezione statistica del prezzo usando EMA + deviazione standard.
+
     Body JSON:
       { "symbol": "GC=F", "end": "2025-03-28", "days": 30, "interval": "1d" }
-    
-    Restituisce:
-      { "projection": [{time, value, upper, lower}, ...] }
     """
     body   = request.get_json()
     symbol = body.get("symbol", "GC=F")
@@ -185,7 +176,6 @@ def get_projection():
         import numpy as np
         import pandas as pd
 
-        # Scarichiamo gli ultimi 90 giorni per calcolare la proiezione
         df = yf.download(symbol, period="90d", interval="1d", auto_adjust=True)
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
@@ -194,7 +184,6 @@ def get_projection():
         if len(closes) < 10:
             return jsonify({"error": "Dati insufficienti per la proiezione"}), 400
 
-        # Calcolo EMA a 20 periodi
         alpha   = 2 / (20 + 1)
         ema     = closes[-1]
         ema_arr = []
@@ -205,9 +194,7 @@ def get_projection():
         last_ema   = ema_arr[-1]
         trend_step = (ema_arr[-1] - ema_arr[0]) / len(ema_arr)
         std_dev    = float(np.std(closes[-20:]))
-
-        # Ultima data dei dati
-        last_dt = df.index[-1].to_pydatetime()
+        last_dt    = df.index[-1].to_pydatetime()
 
         projection = []
         for i in range(1, days + 1):
@@ -232,7 +219,6 @@ def get_projection():
 # ------------------------------------------------------------------
 @backtesting_bp.route("/jobs", methods=["GET"])
 def list_jobs():
-    """Restituisce la lista di tutti i job e il loro stato."""
     return jsonify({
         jid: {
             "status":     j["status"],
@@ -245,29 +231,27 @@ def list_jobs():
 # ------------------------------------------------------------------
 # FUNZIONE INTERNA: Thread di Analisi
 # ------------------------------------------------------------------
-def _run_analysis_thread(job_id: str, symbol: str, start: str, end: str, 
+def _run_analysis_thread(job_id: str, symbol: str, start: str, end: str,
                           projection_days: int, calibrazione_override: dict):
     """
-    Eseguita in un thread separato. Chiama i moduli esistenti del progetto:
-    1. DataFetcher → scarica i dati OHLCV per il periodo
-    2. SupervisorAgent → esegue l'analisi AI completa
-    3. Genera la proiezione futura
+    Eseguita in un thread separato. Flusso:
+    1. Download OHLCV  (yfinance)
+    2. Volume Profile
+    3. SupervisorAgent → report_markdown + chosen_tools
+    4. _extract_trade_setup (con last_price per validazione interna)
+    5. _compute_projection  (ancorata all'AI se il prezzo è plausibile)
     """
     try:
         import Calibrazione
-        
-        # Sovrascriviamo la calibrazione con i parametri scelti dall'utente in UI
         _apply_calibrazione_override(calibrazione_override)
 
         logger.info(f"[BACKTEST THREAD] Avvio analisi {symbol} ({start}→{end})")
 
-        # 1. Download dati storici nel periodo selezionato
         import yfinance as yf
         import pandas as pd
 
         df_1d = yf.download(symbol, start=start, end=end, interval="1d", auto_adjust=True)
-        
-        # EARLY EXIT: Controllo se cancellato
+
         if job_id in CANCELLED_JOBS:
             logger.info(f"[BACKTEST THREAD] Job {job_id} interrotto prima del download 1h.")
             return
@@ -279,38 +263,32 @@ def _run_analysis_thread(job_id: str, symbol: str, start: str, end: str,
         if isinstance(df_1h.columns, pd.MultiIndex):
             df_1h.columns = df_1h.columns.get_level_values(0)
 
-        # Costruzione 4h
         df_4h = df_1h.resample("4h").agg({
             "Open": "first", "High": "max",
             "Low": "min", "Close": "last", "Volume": "sum"
         }).dropna()
 
-        data_dict = {
-            "1h": df_1h,
-            "4h": df_4h,
-            "1d": df_1d
-        }
+        data_dict = {"1h": df_1h, "4h": df_4h, "1d": df_1d}
 
-        # 3. Proiezione statistica iniziale (fallback, verrà sostituita da quella AI se disponibile)
+        # Proiezione statistica (fallback iniziale)
         projection = _compute_projection(df_1d, projection_days)
+        last_price = projection.get("last_price", 0)
 
-        # Calcola la data obiettivo della proiezione futura
         projection_end_date = (
             datetime.strptime(end, "%Y-%m-%d").date() + timedelta(days=projection_days)
         ).isoformat()
 
-        # EARLY EXIT: Controllo prima dell'analisi AI reale
         if job_id in CANCELLED_JOBS:
             logger.info(f"[BACKTEST THREAD] Job {job_id} interrotto prima del SupervisorAgent.")
             return
 
-        # 4. Calcolo Volume Profile per l'analisi e visualizzazione
-        vol_profile = calculate_volume_profile(df_1d)
+        vol_profile    = calculate_volume_profile(df_1d)
+        volume_context = (
+            f"\nVOLUME PROFILE ANALYSIS:\n"
+            f"- Point of Control (POC): {vol_profile['poc']}\n"
+            f"- Max Volume Level: {vol_profile['max_volume']}\n"
+        )
 
-        # Arricchiamo il riepilogo dati per l'AI con informazioni sul POC
-        volume_context = f"\nVOLUME PROFILE ANALYSIS:\n- Point of Control (POC): {vol_profile['poc']}\n- Max Volume Level: {vol_profile['max_volume']}\n"
-
-        # 5. Esecuzione Analisi AI tramite SupervisorAgent
         from agents.supervisor_agent import SupervisorAgent
         supervisore = SupervisorAgent()
         report_markdown, chosen_tools = supervisore.analizza_asset(
@@ -322,31 +300,29 @@ def _run_analysis_thread(job_id: str, symbol: str, start: str, end: str,
             projection_end_date=projection_end_date
         )
 
-        # 6. Estraiamo metriche chiave dal report (entry, SL, TP, previsione futura AI)
-        trade_setup = _extract_trade_setup(report_markdown)
+        # Estrazione setup con last_price per validazione interna dei prezzi AI
+        trade_setup = _extract_trade_setup(report_markdown, last_price=last_price)
 
-        # 7. Se il modello ha prodotto una previsione AI, sostituiamo la proiezione statistica.
-        #    Validazione di plausibilità: se il prezzo estratto devia >40% dall'ultimo prezzo
-        #    storico è quasi certamente un artefatto del parsing (es. "14" da una data).
-        # Usa Prezzo Centrale come ancora primaria; se mancante, usa Target Proiezione come fallback
-        # (il modello spesso produce solo "Target Proiezione" senza "Prezzo Centrale" esplicito)
+        # Selezione prezzo AI: prima Prezzo Centrale, poi Target Proiezione come fallback.
+        # Entrambi già validati internamente in _extract_trade_setup, quindi se sono presenti
+        # sono già stati considerati plausibili rispetto a last_price.
         ai_price_raw = trade_setup.get("ai_forecast_price") or trade_setup.get("ai_forecast_tp")
         if ai_price_raw:
-            last_p = projection.get("last_price", 0)
-            if last_p and abs(ai_price_raw - last_p) / last_p > 0.40:
-                logger.warning(
-                    f"[BACKTEST THREAD] ai_forecast_price={ai_price_raw} non plausibile "
-                    f"(last_price={last_p}, deviazione {abs(ai_price_raw - last_p) / last_p:.0%}). "
-                    "Probabile errore di parsing dalla data nel verdetto. Mantengo proiezione statistica."
-                )
-            else:
-                logger.info(f"[BACKTEST THREAD] Previsione AI trovata: {ai_price_raw} — ricalcolo proiezione ancorata.")
-                projection = _compute_projection(
-                    df_1d, projection_days,
-                    ai_price=ai_price_raw,
-                    ai_upper=trade_setup.get("ai_forecast_upper"),
-                    ai_lower=trade_setup.get("ai_forecast_lower"),
-                )
+            logger.info(
+                f"[BACKTEST THREAD] Previsione AI trovata: {ai_price_raw} "
+                f"(last_price={last_price}) — ricalcolo proiezione ancorata."
+            )
+            projection = _compute_projection(
+                df_1d, projection_days,
+                ai_price=ai_price_raw,
+                ai_upper=trade_setup.get("ai_forecast_upper"),
+                ai_lower=trade_setup.get("ai_forecast_lower"),
+            )
+        else:
+            logger.info(
+                f"[BACKTEST THREAD] Previsione AI non trovata o scartata — "
+                "mantengo proiezione statistica."
+            )
 
         JOBS[job_id].update({
             "status":         "done",
@@ -361,31 +337,28 @@ def _run_analysis_thread(job_id: str, symbol: str, start: str, end: str,
 
     except Exception as e:
         logger.error(f"[BACKTEST THREAD] Errore nel job {job_id}: {e}")
-        JOBS[job_id].update({
-            "status": "error",
-            "error":  str(e)
-        })
+        JOBS[job_id].update({"status": "error", "error": str(e)})
 
 
 def _apply_calibrazione_override(override: dict):
     """Sovrascrive temporaneamente i parametri di Calibrazione con quelli dell'UI."""
     import Calibrazione
     mapping = {
-        "LLM_PROVIDER":             "LLM_PROVIDER",
-        "QWEN_THINKING_ENABLED":    "QWEN_THINKING_ENABLED",
-        "DEFAULT_PROJECTION_DAYS":  "DEFAULT_PROJECTION_DAYS",
-        "ALPACA_NEWS_LIMIT":        "ALPACA_NEWS_LIMIT",
-        "DUCKDUCKGO_NEWS_LIMIT":    "DUCKDUCKGO_NEWS_LIMIT",
-        "AGENT_MACRO_ENABLED":      "AGENT_MACRO_ENABLED",
-        "AGENT_PATTERN_ENABLED":    "AGENT_PATTERN_ENABLED",
-        "AGENT_TREND_ENABLED":      "AGENT_TREND_ENABLED",
-        "AGENT_SR_ENABLED":         "AGENT_SR_ENABLED",
-        "AGENT_VOLUME_ENABLED":     "AGENT_VOLUME_ENABLED",
-        "TEMPERATURE_KNOWLEDGE_SEARCH": "TEMPERATURE_KNOWLEDGE_SEARCH",
-        "TEMPERATURE_MACRO_EXPERT":     "TEMPERATURE_MACRO_EXPERT",
-        "TEMPERATURE_TECH_ORCHESTRATOR": "TEMPERATURE_TECH_ORCHESTRATOR",
-        "TEMPERATURE_TECH_SPECIALISTS":  "TEMPERATURE_TECH_SPECIALISTS",
-        "TEMPERATURE_SKILL_SELECTOR":    "TEMPERATURE_SKILL_SELECTOR",
+        "LLM_PROVIDER":                  "LLM_PROVIDER",
+        "QWEN_THINKING_ENABLED":         "QWEN_THINKING_ENABLED",
+        "DEFAULT_PROJECTION_DAYS":       "DEFAULT_PROJECTION_DAYS",
+        "ALPACA_NEWS_LIMIT":             "ALPACA_NEWS_LIMIT",
+        "DUCKDUCKGO_NEWS_LIMIT":         "DUCKDUCKGO_NEWS_LIMIT",
+        "AGENT_MACRO_ENABLED":           "AGENT_MACRO_ENABLED",
+        "AGENT_PATTERN_ENABLED":         "AGENT_PATTERN_ENABLED",
+        "AGENT_TREND_ENABLED":           "AGENT_TREND_ENABLED",
+        "AGENT_SR_ENABLED":              "AGENT_SR_ENABLED",
+        "AGENT_VOLUME_ENABLED":          "AGENT_VOLUME_ENABLED",
+        "TEMPERATURE_KNOWLEDGE_SEARCH":      "TEMPERATURE_KNOWLEDGE_SEARCH",
+        "TEMPERATURE_MACRO_EXPERT":          "TEMPERATURE_MACRO_EXPERT",
+        "TEMPERATURE_TECH_ORCHESTRATOR":     "TEMPERATURE_TECH_ORCHESTRATOR",
+        "TEMPERATURE_TECH_SPECIALISTS":      "TEMPERATURE_TECH_SPECIALISTS",
+        "TEMPERATURE_SKILL_SELECTOR":        "TEMPERATURE_SKILL_SELECTOR",
     }
     for ui_key, cal_key in mapping.items():
         if ui_key in override:
@@ -400,16 +373,15 @@ def _compute_projection(df_1d, days: int,
     Calcola la proiezione del prezzo per i prossimi `days` giorni.
 
     Modalità AI-anchored (quando ai_price è fornito):
-      La linea parte dall'ultimo prezzo storico e converge linearmente verso
-      il prezzo AI previsto all'ultimo giorno. Le bande usano ai_upper/ai_lower
-      se disponibili, altrimenti ±1.5σ sul prezzo AI target.
+      Interpolazione lineare dal last_price al prezzo AI target.
+      Le bande convergono verso ai_upper/ai_lower (o ±1.5σ come fallback).
 
     Modalità statistica (fallback, quando ai_price è None):
-      Regressione lineare sui 20 giorni precedenti + bande ±1.5σ.
+      Regressione lineare sugli ultimi 20 giorni + bande ±1.5σ.
     """
     import numpy as np
 
-    closes = df_1d["Close"].values.flatten().astype(float)
+    closes     = df_1d["Close"].values.flatten().astype(float)
     if len(closes) < 5:
         return {}
 
@@ -419,12 +391,11 @@ def _compute_projection(df_1d, days: int,
     projection_candles = []
 
     if ai_price is not None and days > 0:
-        # Interpolazione lineare dal prezzo attuale al prezzo AI target
-        price_step = (ai_price - last_price) / days
+        price_step   = (ai_price - last_price) / days
         upper_target = ai_upper if ai_upper else ai_price + std_dev * 1.5
         lower_target = ai_lower if ai_lower else ai_price - std_dev * 1.5
-        upper_step = (upper_target - (last_price + std_dev * 1.5)) / days
-        lower_step = (lower_target - (last_price - std_dev * 1.5)) / days
+        upper_step   = (upper_target - (last_price + std_dev * 1.5)) / days
+        lower_step   = (lower_target - (last_price - std_dev * 1.5)) / days
 
         for i in range(1, days + 1):
             proj_dt    = last_dt + timedelta(days=i)
@@ -435,11 +406,10 @@ def _compute_projection(df_1d, days: int,
                 "upper": round((last_price + std_dev * 1.5) + upper_step * i, 4),
                 "lower": round((last_price - std_dev * 1.5) + lower_step * i, 4),
             })
-        trend = "bullish" if ai_price > last_price else "bearish"
-        slope = round((ai_price - last_price) / days, 4)
+        trend       = "bullish" if ai_price > last_price else "bearish"
+        slope       = round((ai_price - last_price) / days, 4)
         ai_anchored = True
     else:
-        # Fallback statistico: regressione lineare sugli ultimi 20 giorni
         n      = min(20, len(closes))
         coeffs = np.polyfit(range(n), closes[-n:], 1)
         m      = float(coeffs[0])
@@ -453,8 +423,8 @@ def _compute_projection(df_1d, days: int,
                 "upper": round(proj_price + std_dev * 1.5, 4),
                 "lower": round(proj_price - std_dev * 1.5, 4),
             })
-        trend = "bullish" if m > 0 else "bearish"
-        slope = round(m, 4)
+        trend       = "bullish" if m > 0 else "bearish"
+        slope       = round(m, 4)
         ai_anchored = False
 
     return {
@@ -468,112 +438,115 @@ def _compute_projection(df_1d, days: int,
     }
 
 
-def _extract_trade_setup(report_markdown: str) -> dict:
+def _is_plausible_price(value: float, last_price: float, tolerance: float = 0.50) -> bool:
+    """
+    Verifica che `value` sia plausibile rispetto a `last_price`.
+    Tollera variazioni fino a `tolerance` (default 50%) in entrambe le direzioni.
+    Restituisce sempre True se last_price è 0 o None (nessun riferimento disponibile).
+    """
+    if not last_price or last_price <= 0:
+        return True
+    deviation = abs(value - last_price) / last_price
+    return deviation <= tolerance
+
+
+def _extract_trade_setup(report_markdown: str, last_price: float = None) -> dict:
     """
     Estrae i livelli di Entry, Stop Loss e Take Profit dal VERDETTO FINALE del report AI.
-    Non usa nessun fallback statistico: se un valore non è trovato nel testo,
-    viene lasciato a None e il campo parse_error viene impostato a True con
-    un messaggio che descrive esattamente cosa manca.
+
+    Parametri
+    ----------
+    report_markdown : str
+        Il report completo prodotto dal SupervisorAgent.
+    last_price : float, optional
+        L'ultimo prezzo storico del periodo analizzato.
+        Se fornito, i prezzi AI estratti vengono validati internamente:
+        valori che deviano più del 50% vengono scartati con un warning,
+        prevenendo che artefatti del parsing (date, ratio, livelli storici lontani)
+        inquinino la proiezione futura.
+
+    Note sul parsing dei prezzi
+    ----------------------------
+    _parse_number() gestisce sia la notazione italiana (punto = migliaia, virgola = decimale:
+    "3.100" → 3100, "4.850,50" → 4850.5) sia quella anglosassone ("3,100" → 3100,
+    "4,850.50" → 4850.5). La regola chiave: punto seguito da ESATTAMENTE 3 cifre = migliaia.
     """
     import re
 
-    # Struttura iniziale: tutti i valori a None (nessun fallback)
     setup = {
-        "entry":                None,
-        "stop_loss":            None,
-        "take_profit_1":        None,
-        "take_profit_2":        None,
-        "direction":            "unknown",
-        "ai_forecast_price":    None,   # Prezzo Centrale previsto alla data di proiezione
-        "ai_forecast_upper":    None,   # Scenario rialzista AI
-        "ai_forecast_lower":    None,   # Scenario ribassista AI
-        "ai_forecast_entry":    None,   # Entry Proiezione
-        "ai_forecast_sl":       None,   # Stop Loss Proiezione
-        "ai_forecast_tp":       None,   # Target Proiezione
-        "ai_forecast_bias":     None,   # Bias Proiezione (bullish/bearish/neutral)
-        "parse_error":          False,
-        "parse_error_msg":      ""
+        "entry":             None,
+        "stop_loss":         None,
+        "take_profit_1":     None,
+        "take_profit_2":     None,
+        "direction":         "unknown",
+        "ai_forecast_price": None,
+        "ai_forecast_upper": None,
+        "ai_forecast_lower": None,
+        "ai_forecast_entry": None,
+        "ai_forecast_sl":    None,
+        "ai_forecast_tp":    None,
+        "ai_forecast_bias":  None,
+        "parse_error":       False,
+        "parse_error_msg":   ""
     }
 
     def _parse_number(s: str) -> float:
         """
-        Converte una stringa numerica in float gestendo sia la notazione italiana
-        (punto come separatore delle migliaia, virgola come decimale: 4.850,50)
-        sia quella anglosassone (virgola come migliaia, punto come decimale: 4,850.50).
+        Converte una stringa numerica in float gestendo notazione italiana e anglosassone.
 
-        CASO CRITICO: "3.100" in italiano = 3100 (migliaia), NON 3.1 (decimale).
-        Regola: un singolo punto seguito da esattamente 3 cifre = separatore delle migliaia.
+        Regola critica: punto singolo seguito da ESATTAMENTE 3 cifre = separatore delle
+        migliaia in italiano. Es: "3.100" → 3100, "2.980" → 2980.
         """
         s = s.strip().lstrip("$€ ")
-        # Se contiene sia punto che virgola, identifica quale è il decimale
         if "." in s and "," in s:
             if s.rfind(".") > s.rfind(","):
-                # Stile anglosassone: 4,850.50 → rimuovi virgole
                 return float(s.replace(",", ""))
             else:
-                # Stile italiano: 4.850,50 → rimuovi punti, sostituisci virgola con punto
                 return float(s.replace(".", "").replace(",", "."))
         elif "," in s:
-            # Solo virgola: potrebbe essere decimale italiano (4850,50) o migliaia US (4,850)
             parts = s.split(",")
             if len(parts) == 2 and len(parts[1]) <= 2:
-                # Probabile decimale: 4850,50
                 return float(s.replace(",", "."))
             else:
-                # Migliaia: 4,850 → rimuovi virgola
                 return float(s.replace(",", ""))
         elif "." in s:
             parts = s.split(".")
             if len(parts) > 2:
-                # Più di un punto → tutti separatori delle migliaia: "3.100.000" → 3100000
                 return float(s.replace(".", ""))
             if (len(parts) == 2 and len(parts[1]) == 3
                     and parts[1].isdigit() and parts[0].isdigit()):
-                # Singolo punto con ESATTAMENTE 3 cifre decimali → migliaia italiane:
-                # "3.100" → 3100, "2.980" → 2980, "3.300" → 3300
                 return float(parts[0] + parts[1])
-            # Decimale normale: "3.10" → 3.10, "3.5" → 3.5
             return float(s)
         else:
             return float(s)
 
-    # Pattern numerico: cifre con separatori opzionali (es. 4.850, 4,850, 4850)
-    num = r'\$?\s*([\d][.\d]*[\d](?:[,.][\d]+)?|[\d]+(?:[,.][\d]+)?)'
+    num = r'\$?\s*([\d][.\d]*[\d](?:[,.]\d+)?|\d+(?:[,.]\d+)?)'
 
     def _find_price_after_label(text, label_re, window=500):
         """
-        Trova il label nel testo e restituisce il primo numero che NON sia
-        una percentuale (seguito da %) nell'area di testo successiva.
+        Trova il label nel testo e restituisce il primo numero che NON sia:
+        - una percentuale (seguito da %)
+        - un ratio (seguito da :)
+        - un componente di data (preceduto da -)
+        - un valore < 10 (ratio R:R, score, ecc.)
 
-        Questo approccio è robusto rispetto a:
-        - Testo descrittivo prima del prezzo ("ritracciamento del 61.8% a 3.050")
-        - Prezzi su righe separate dal label
-        - Em dash e altra punteggiatura tra label e valore
-
-        La ricerca si ferma alla prossima intestazione di campo markdown **Campo
-        per evitare di catturare numeri appartenenti al campo successivo.
+        La ricerca si ferma alla prossima intestazione di campo markdown
+        per evitare di catturare numeri del campo successivo.
         """
         m = re.search(label_re, text, re.IGNORECASE)
         if not m:
             return None
         area = text[m.end(): m.end() + window]
-        # Ferma al prossimo campo markdown su nuova riga (es. "\n**Stop Loss**" o "\n- **Entry**")
         next_field = re.search(r'\n\s*(?:-\s*)?\*\*[A-Za-zÀ-ÿ]', area)
         if next_field:
             area = area[:next_field.start()]
-        # Scansiona tutti i numeri: salta quelli che fanno parte di una data YYYY-MM-DD
-        # (preceduti da '-') o seguiti da %, : (ratio R:R) o - (separatore data).
         for nm in re.finditer(num, area):
             if nm.start() > 0 and area[nm.start() - 1] == '-':
-                continue  # Preceduto da '-': componente di data (es. "14" in "2026-04-14")
+                continue
             suffix = area[nm.end(): nm.end() + 2].strip()
             if suffix.startswith('%') or suffix.startswith(':') or suffix.startswith('-'):
                 continue
             val = nm.group(1)
-            # Salta valori < 10: sono ratio (1:2.5), score (1-5), non prezzi.
-            # IMPORTANTE: usa _parse_number() e NON float() diretto, altrimenti
-            # prezzi italiani come "3.200" (= 3200, oro) vengono letti come 3.2 < 10
-            # e scartati erroneamente.
             try:
                 if _parse_number(val) < 10:
                     continue
@@ -582,70 +555,72 @@ def _extract_trade_setup(report_markdown: str) -> dict:
             return val
         return None
 
-    # ── Localizza la sezione VERDETTO FINALE ─────────────────────────────────
+    def _extract_validated_price(label_re, field_name: str,
+                                  plausible: bool = False) -> float | None:
+        """
+        Estrae un prezzo dal testo dopo `label_re` e, se `plausible=True` e
+        `last_price` è disponibile, valida che il valore sia entro il 50%
+        di last_price. Valori implausibili vengono scartati con warning.
+        """
+        raw = _find_price_after_label(search_text, label_re)
+        if raw is None:
+            return None
+        try:
+            val = round(_parse_number(raw), 4)
+        except ValueError as e:
+            logger.error(f"[EXTRACT] Impossibile parsare {field_name} '{raw}': {e}")
+            return None
+        if plausible and last_price and not _is_plausible_price(val, last_price):
+            deviation = abs(val - last_price) / last_price
+            logger.warning(
+                f"[EXTRACT] {field_name}={val} scartato: deviazione "
+                f"{deviation:.0%} da last_price={last_price}. "
+                "Probabile artefatto del parsing (data, livello storico lontano, ratio)."
+            )
+            return None
+        logger.info(f"[EXTRACT] {field_name} estratto: {val}")
+        return val
+
+    # ── Localizza VERDETTO FINALE ─────────────────────────────────────────────
     verdetto_match = re.search(
         r'(?:VERDETTO\s+FINALE[^#\n]*|🚀\s*VERDETTO\s+FINALE[^#\n]*)(.+)',
         report_markdown, re.IGNORECASE | re.DOTALL
     )
     if not verdetto_match:
-        setup["parse_error"] = True
+        setup["parse_error"]     = True
         setup["parse_error_msg"] = (
             "Sezione VERDETTO FINALE non trovata nel report. "
-            "Il sintetizzatore potrebbe non aver prodotto output o aver usato un titolo diverso."
+            "Il sintetizzatore potrebbe non aver prodotto output "
+            "o aver usato un titolo diverso."
         )
         logger.error(f"[EXTRACT] {setup['parse_error_msg']}")
         return setup
 
     search_text = verdetto_match.group(0)
 
-    # ── Estrazione Entry ──────────────────────────────────────────────────────
+    # ── Entry ─────────────────────────────────────────────────────────────────
     entry_label = r'(?:[Ee]ntry\s+[Ss]uggerita|[Ee]ntry\s+[Cc]onsigliata|[Ee]ntry|[Ii]ngresso\s+[Ss]uggerit\w*)'
-    raw = _find_price_after_label(search_text, entry_label)
-    if raw:
-        try:
-            setup["entry"] = round(_parse_number(raw), 4)
-        except ValueError as e:
-            logger.error(f"[EXTRACT] Impossibile parsare Entry '{raw}': {e}")
-    else:
+    setup["entry"] = _extract_validated_price(entry_label, "Entry")
+    if setup["entry"] is None:
         logger.warning("[EXTRACT] Campo 'Entry Suggerita' non trovato nel VERDETTO FINALE.")
 
-    # ── Estrazione Stop Loss ──────────────────────────────────────────────────
+    # ── Stop Loss ─────────────────────────────────────────────────────────────
     sl_label = r'(?:[Ss]top\s*[Ll]oss|[Ss]top)'
-    raw = _find_price_after_label(search_text, sl_label)
-    if raw:
-        try:
-            setup["stop_loss"] = round(_parse_number(raw), 4)
-        except ValueError as e:
-            logger.error(f"[EXTRACT] Impossibile parsare Stop Loss '{raw}': {e}")
-    else:
+    setup["stop_loss"] = _extract_validated_price(sl_label, "Stop Loss")
+    if setup["stop_loss"] is None:
         logger.warning("[EXTRACT] Campo 'Stop Loss' non trovato nel VERDETTO FINALE.")
 
-    # ── Estrazione Target 1 ───────────────────────────────────────────────────
+    # ── Target 1 ──────────────────────────────────────────────────────────────
     tp1_label = r'(?:[Tt]arget\s*1|[Tt]ake\s*[Pp]rofit\s*1|[Tt][Pp]1|[Oo]biettivo\s*1)'
-    raw = _find_price_after_label(search_text, tp1_label)
-    if raw:
-        try:
-            setup["take_profit_1"] = round(_parse_number(raw), 4)
-        except ValueError as e:
-            logger.error(f"[EXTRACT] Impossibile parsare Target 1 '{raw}': {e}")
-    else:
+    setup["take_profit_1"] = _extract_validated_price(tp1_label, "Target 1")
+    if setup["take_profit_1"] is None:
         logger.warning("[EXTRACT] Campo 'Target 1' non trovato nel VERDETTO FINALE.")
 
-    # ── Estrazione Target 2 ───────────────────────────────────────────────────
+    # ── Target 2 ──────────────────────────────────────────────────────────────
     tp2_label = r'(?:[Tt]arget\s*2|[Tt]ake\s*[Pp]rofit\s*2|[Tt][Pp]2|[Oo]biettivo\s*2)'
-    raw = _find_price_after_label(search_text, tp2_label)
-    if raw:
-        try:
-            setup["take_profit_2"] = round(_parse_number(raw), 4)
-        except ValueError as e:
-            logger.error(f"[EXTRACT] Impossibile parsare Target 2 '{raw}': {e}")
-    else:
-        logger.warning("[EXTRACT] Campo 'Target 2' non trovato nel VERDETTO FINALE.")
+    setup["take_profit_2"] = _extract_validated_price(tp2_label, "Target 2")
 
-    # ── Estrazione direzione (Bias Primario) ──────────────────────────────────
-    # Approccio keyword-based: trova la label, poi cerca la keyword di direzione
-    # nei successivi 200 caratteri. Più robusto di [^A-Za-z\n]* che si fermava
-    # alla prima lettera, catturando parole parentetiche come "(Setup Corrente)".
+    # ── Bias Primario (direzione) ─────────────────────────────────────────────
     m_bias_label = re.search(r'Bias\s+Primario', search_text, re.IGNORECASE)
     if m_bias_label:
         bias_area = search_text[m_bias_label.start(): m_bias_label.start() + 200]
@@ -673,49 +648,38 @@ def _extract_trade_setup(report_markdown: str) -> dict:
     else:
         logger.warning("[EXTRACT] Riga 'Bias Primario' non trovata nel VERDETTO FINALE.")
 
-    # ── Estrazione Previsione Futura AI ──────────────────────────────────────
-    # Cerca il prezzo centrale all'interno della sezione Previsione Futura.
-    # Il label "Prezzo Centrale" evita di matchare la data nella riga header
-    # (es. "**Previsione Futura** (al 2026-04-14):" dove "2026" sarebbe catturato).
+    # ── Prezzo Centrale (proiezione AI) — validazione plausibilità OBBLIGATORIA ──
     forecast_label = r'(?:[Pp]rezzo\s+[Cc]entrale|[Pp]revisione\s+[Cc]entrale|[Pp]rezzo\s+[Pp]revisto)'
-    raw = _find_price_after_label(search_text, forecast_label)
-    if raw:
-        try:
-            setup["ai_forecast_price"] = round(_parse_number(raw), 4)
-            logger.info(f"[EXTRACT] ai_forecast_price estratto: {setup['ai_forecast_price']}")
-        except ValueError as e:
-            logger.error(f"[EXTRACT] Impossibile parsare Prezzo Centrale '{raw}': {e}")
-    else:
-        logger.info("[EXTRACT] Campo 'Prezzo Centrale' (proiezione) non presente nel verdetto (opzionale).")
+    setup["ai_forecast_price"] = _extract_validated_price(
+        forecast_label, "ai_forecast_price", plausible=True
+    )
 
-    # Entry Proiezione
-    raw = _find_price_after_label(search_text, r'[Ee]ntry\s+[Pp]roiezione')
-    if raw:
-        try:
-            setup["ai_forecast_entry"] = round(_parse_number(raw), 4)
-            logger.info(f"[EXTRACT] ai_forecast_entry estratto: {setup['ai_forecast_entry']}")
-        except ValueError:
-            pass
+    # ── Entry Proiezione ──────────────────────────────────────────────────────
+    setup["ai_forecast_entry"] = _extract_validated_price(
+        r'[Ee]ntry\s+[Pp]roiezione', "ai_forecast_entry", plausible=True
+    )
 
-    # Stop Loss Proiezione
-    raw = _find_price_after_label(search_text, r'[Ss]top\s+[Ll]oss\s+[Pp]roiezione')
-    if raw:
-        try:
-            setup["ai_forecast_sl"] = round(_parse_number(raw), 4)
-            logger.info(f"[EXTRACT] ai_forecast_sl estratto: {setup['ai_forecast_sl']}")
-        except ValueError:
-            pass
+    # ── Stop Loss Proiezione ──────────────────────────────────────────────────
+    setup["ai_forecast_sl"] = _extract_validated_price(
+        r'[Ss]top\s+[Ll]oss\s+[Pp]roiezione', "ai_forecast_sl", plausible=True
+    )
 
-    # Target Proiezione
-    raw = _find_price_after_label(search_text, r'[Tt]arget\s+[Pp]roiezione')
-    if raw:
-        try:
-            setup["ai_forecast_tp"] = round(_parse_number(raw), 4)
-            logger.info(f"[EXTRACT] ai_forecast_tp estratto: {setup['ai_forecast_tp']}")
-        except ValueError:
-            pass
+    # ── Target Proiezione ─────────────────────────────────────────────────────
+    # Validazione plausibilità attiva: questo è il fallback di ai_forecast_price,
+    # quindi un valore implausibile qui causerebbe una proiezione errata.
+    setup["ai_forecast_tp"] = _extract_validated_price(
+        r'[Tt]arget\s+[Pp]roiezione', "ai_forecast_tp", plausible=True
+    )
 
-    # Bias Proiezione
+    # ── Scenario Rialzista/Ribassista ─────────────────────────────────────────
+    setup["ai_forecast_upper"] = _extract_validated_price(
+        r'[Ss]cenario\s+[Rr]ialzista', "ai_forecast_upper", plausible=True
+    )
+    setup["ai_forecast_lower"] = _extract_validated_price(
+        r'[Ss]cenario\s+[Rr]ibassista', "ai_forecast_lower", plausible=True
+    )
+
+    # ── Bias Proiezione ───────────────────────────────────────────────────────
     bias_proj_match = re.search(
         r'[Bb]ias\s+[Pp]roiezione[^A-Za-z\n]*([A-Za-z]+(?:\s+[A-Za-z]+)?)',
         search_text, re.IGNORECASE
@@ -730,35 +694,18 @@ def _extract_trade_setup(report_markdown: str) -> dict:
             setup["ai_forecast_bias"] = "neutral"
         logger.info(f"[EXTRACT] ai_forecast_bias estratto: {setup['ai_forecast_bias']}")
 
-    upper_label = r'[Ss]cenario\s+[Rr]ialzista'
-    raw = _find_price_after_label(search_text, upper_label)
-    if raw:
-        try:
-            setup["ai_forecast_upper"] = round(_parse_number(raw), 4)
-        except ValueError:
-            pass
-
-    lower_label = r'[Ss]cenario\s+[Rr]ibassista'
-    raw = _find_price_after_label(search_text, lower_label)
-    if raw:
-        try:
-            setup["ai_forecast_lower"] = round(_parse_number(raw), 4)
-        except ValueError:
-            pass
-
-    # ── Segnala i campi mancanti ──────────────────────────────────────────────
+    # ── Segnala i campi critici mancanti ─────────────────────────────────────
     missing = [k for k in ("entry", "stop_loss", "take_profit_1") if setup[k] is None]
     if setup["direction"] == "unknown":
         missing.append("direction")
     if missing:
-        setup["parse_error"] = True
+        setup["parse_error"]     = True
         setup["parse_error_msg"] = (
             f"Campi non estratti dal VERDETTO FINALE: {', '.join(missing)}. "
             "Verifica che il sintetizzatore abbia usato le etichette corrette "
             "('Entry Suggerita', 'Stop Loss', 'Target 1', 'Bias Primario')."
         )
         logger.error(f"[EXTRACT] {setup['parse_error_msg']}")
-        # Log del testo grezzo per diagnostica: mostra i primi 800 char del VERDETTO
         logger.warning(
             f"[EXTRACT] Testo VERDETTO FINALE (primi 800 char):\n{search_text[:800]}"
         )

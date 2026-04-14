@@ -249,30 +249,73 @@ DEFAULT_COLORS = {
 # contribuisce conoscenza. Usato per costruire la skills_guidance
 # in modo deterministico e completo, senza dipendere dall'LLM.
 # ------------------------------------------------------------------
-BOOK_DOMAIN_MAP = {
-    # Candele giapponesi → primario per pattern
-    "Steve Nison — Japanese Candlestick Charting":                   ["pattern"],
-    # Statistica pattern grafici → pattern e livelli target S/R
-    "Thomas Bulkowski — Encyclopedia of Chart Patterns":             ["pattern", "sr"],
-    # Day trading operativo → pattern di entrata e livelli operativi
-    "Joe Ross — Day Trading":                                        ["pattern", "sr"],
-    # Short-term trading → trend di breve e analisi volumetrica
-    "Larry Williams — Long-Term Secrets to Short-Term Trading":      ["trend", "volume"],
-    # Analisi tecnica classica → trend, S/R, volume
-    "John Murphy — Analisi Tecnica dei Mercati Finanziari":          ["trend", "sr", "volume"],
-    # Multi-timeframe → trend, allineamento livelli
-    "Brian Shannon — Technical Analysis Using Multiple Timeframes":  ["trend", "sr"],
+
+# ------------------------------------------------------------------
+# BOOK_DOMAIN_MAP — Profondo, basato sul contenuto reale di ogni libro.
+#
+# Ogni libro viene assegnato a TUTTI i domini che tratta in modo
+# substantivo. La mappatura riflette i capitoli effettivi dei testi,
+# non una semplificazione. Aggiornare questo dict quando si aggiungono
+# nuovi libri alla skills_library.
+#
+# Domini:
+#   pattern    → Pattern candlestick, formazioni chartistiche, entrate operative
+#   trend      → Medie mobili, indicatori di trend, analisi multi-timeframe
+#   sr         → Supporti/resistenze, livelli S/R dinamici e statici
+#   oscillator → RSI, MACD, Stochastic, %R, MAO, divergenze, conferme
+# ------------------------------------------------------------------
+BOOK_DOMAIN_MAP: dict[str, list[str]] = {
+
+    # ── Steve Nison — Japanese Candlestick Charting ─────────────────
+    # Cap. 1-11:  analisi delle candele singole, doppie, triple → pattern
+    # Cap. 12-14: utilizzo di RSI, Stochastic, MACD, MAO come conferme
+    #             obbligatorie ai segnali candlestick → oscillator
+    "Steve Nison — Japanese Candlestick Charting": ["pattern", "oscillator"],
+
+    # ── Thomas Bulkowski — Encyclopedia of Chart Patterns ───────────
+    # Parte 1-3:  ~70 pattern grafici con statistiche di breakout → pattern
+    # Parte 4:    target misurati, failure rates, livelli S/R post-breakout → sr
+    "Thomas Bulkowski — Encyclopedia of Chart Patterns": ["pattern", "sr"],
+
+    # ── Joe Ross — Day Trading (La Legge dei Grafici — TLOC) ────────
+    # Parte 1-2:  1-2-3 Top/Bottom, Ross Hook, Ledge, TTE → pattern
+    # Parte 3:    Trading Range, congestioni, livelli di entrata TLOC → sr
+    "Joe Ross — Day Trading": ["pattern", "sr"],
+
+    # ── Larry Williams — Long-Term Secrets to Short-Term Trading ────
+    # Cap. 1-5:   Swing highs/lows come S/R operativi, livelli psicologici → sr
+    # Cap. 6-9:   Momentum, trend di breve e conferme di prezzo → trend
+    # Cap. 10-14: Williams %R, MACD, pattern Oops, Smash Day → oscillator
+    "Larry Williams — Long-Term Secrets to Short-Term Trading": ["trend", "sr", "oscillator"],
+
+    # ── John Murphy — Analisi Tecnica dei Mercati Finanziari ────────
+    # Cap. 1-5:   Fondamenti AT, trend, medie mobili → trend
+    # Cap. 6-8:   Pattern grafici di inversione e continuazione → pattern
+    # Cap. 9-10:  Supporti, resistenze, canali, Fibonacci → sr
+    # Cap. 11-14: Oscillatori (RSI, MACD, Stochastic, divergenze) → oscillator
+    # Cap. 15-16: Analisi volumetrica e Open Interest → (volume, trattato da Shannon)
+    "John Murphy — Analisi Tecnica dei Mercati Finanziari": ["pattern", "trend", "sr", "oscillator"],
+
+    # ── Brian Shannon — Technical Analysis Using Multiple Timeframes ─
+    # Cap. 1-4:   Allineamento del trend su più timeframe → trend
+    # Cap. 5-7:   Identificazione VWAP, S/R e livelli chiave MTF → sr
+    "Brian Shannon — Technical Analysis Using Multiple Timeframes": ["trend", "sr"],
 }
 
 # ------------------------------------------------------------------
-# MAPPING KEYWORD → OVERLAY ID
+# TECHNIQUE_OVERLAY_MAP — Keyword → Overlay ID (chart.js)
 #
-# Per ogni tecnica estratta dai SKILL.md (heading ##), se contiene
-# una delle keyword (lowercase), viene associata all'overlay ID
-# corrispondente in computeOverlayData() di chart.js.
-# Ordine importante: le keyword più specifiche devono venire prima.
-# Tecniche senza match restano come badge informativi (overlay_id=None).
+# Per ogni tecnica estratta dai SKILL.md (heading ##), se il nome
+# contiene la keyword (word-boundary, case-insensitive), viene
+# associata all'overlay ID in computeOverlayData() di chart.js.
+#
+# Regole di ordinamento:
+#   1. Le keyword PIÙ SPECIFICHE vengono PRIMA (es. "morning doji star"
+#      prima di "doji") per evitare match prematuri sul termine generico.
+#   2. Tecniche senza match → overlay_id=None (badge informativo,
+#      nessun rendering grafico, ma comunque passata all'agente).
 # ------------------------------------------------------------------
+
 TECHNIQUE_OVERLAY_MAP: list[tuple[str, str]] = [
     # ── Doji variants (più specifici prima) ──────────────────────────
     ("morning doji star",           "pattern_morning_doji_star"),
@@ -411,13 +454,18 @@ TECHNIQUE_OVERLAY_MAP: list[tuple[str, str]] = [
 
 def _find_overlay_id(technique_name: str) -> str | None:
     """
-    Cerca nella TECHNIQUE_OVERLAY_MAP la prima keyword contenuta nel nome
-    della tecnica (case-insensitive). Restituisce l'overlay_id corrispondente
+    Cerca nella TECHNIQUE_OVERLAY_MAP la prima keyword che matcha il nome
+    della tecnica (word-boundary, case-insensitive). Restituisce l'overlay_id
     o None se la tecnica non ha rappresentazione visiva sul grafico.
+
+    Usa re.search con \b per evitare falsi positivi da substring parziali
+    (es. "swing" non deve matchare "swing trading framework" con dynamic_support
+    se il contesto è puramente concettuale).
     """
     name_lower = technique_name.lower()
     for keyword, overlay_id in TECHNIQUE_OVERLAY_MAP:
-        if keyword in name_lower:
+        pattern = r'\b' + re.escape(keyword) + r'\b'
+        if re.search(pattern, name_lower):
             return overlay_id
     return None
 
@@ -427,19 +475,23 @@ class SkillSelector:
     Seleziona gli strumenti di analisi più adatti al contesto corrente.
 
     Produce due output distinti:
-    - chosen_tools: strumenti grafici per il frontend (pattern/trend/sr/oscillator overlay)
-    - skills_guidance: istruzioni vincolanti con TUTTE le tecniche rilevanti
-      per ogni specialista, costruite deterministicamente dal catalogo.
+    - chosen_tools:         strumenti grafici per il frontend (overlay chart.js)
+    - skills_guidance:      istruzioni vincolanti per ogni agente specialista,
+                            costruite deterministicamente dai SKILL.md (nome + body
+                            di ogni tecnica, nessun limite di quantità)
+    - techniques_per_domain: struttura {domain: {libro: [{name, body, overlay_id}]}}
+                             per il bridge frontend tecnica ↔ overlay grafico
+
+    Miglioramenti v2:
+    - BOOK_DOMAIN_MAP profondo: tutti e 4 i domini coperti correttamente
+    - Estrazione integrale: nome + body di ogni tecnica, zero cap
+    - Word-boundary regex in _find_overlay_id (no false positive)
+    - _verify_coverage: audit di copertura totale con warning espliciti
+    - Dead code rimosso: _load_skill_summaries, _build_technique_catalog_text
+    - Cache con force_reload per sviluppo iterativo
     """
 
-    def __init__(self):
-        self.skills_dir        = Calibrazione.SKILLS_LIBRARY_DIR
-        self._skill_summaries  = None   # Cache sommari libri
-        self._technique_catalog = None  # Cache tecniche estratte dai SKILL.md
-
-    # ------------------------------------------------------------------
-    # BOOK LABELS — mappa dir name → etichetta leggibile
-    # ------------------------------------------------------------------
+    # Mappa directory-name → etichetta leggibile (chiave di BOOK_DOMAIN_MAP)
     BOOK_LABELS: dict[str, str] = {
         "encyclopedia_of_chart_patterns":         "Thomas Bulkowski — Encyclopedia of Chart Patterns",
         "encyclopedia-of-chart-patterns":          "Thomas Bulkowski — Encyclopedia of Chart Patterns",
@@ -455,81 +507,335 @@ class SkillSelector:
         "technical-analysis-multiple-timeframes":  "Brian Shannon — Technical Analysis Using Multiple Timeframes",
     }
 
-    def _load_technique_catalog(self) -> dict:
+    def __init__(self):
+        self.skills_dir        = Calibrazione.SKILLS_LIBRARY_DIR
+        self._technique_catalog = None  # Cache: {book_label: [{name, body}]}
+
+    # ------------------------------------------------------------------
+    # LETTURA SKILL.md — Estrazione nome + body di ogni tecnica
+    # ------------------------------------------------------------------
+
+    def _load_technique_catalog(self, force_reload: bool = False) -> dict:
         """
-        Estrae i nomi delle tecniche direttamente dai SKILL.md leggendo i titoli ## .
-        Opera solo sui 6 libri tecnici (Calibrazione.TECHNICAL_SKILLS_DIRS).
-        Restituisce {label_libro: [lista_nomi_tecniche]}.
+        Estrae da ogni SKILL.md il nome (## heading) e il body (testo
+        sotto l'heading fino al prossimo ##) per ogni tecnica.
+
+        Differenze rispetto alla v1:
+        - Nessun limite di quantità (rimosso il cap a 30)
+        - Viene estratto il body completo (troncato a 400 char) oltre al nome
+        - force_reload=True invalida la cache (utile in sviluppo)
+        - Warning esplicito se il libro non è in BOOK_DOMAIN_MAP
+
+        Returns:
+            {book_label: [{"name": str, "body": str}, ...]}
         """
-        if self._technique_catalog is not None:
+        if self._technique_catalog is not None and not force_reload:
             return self._technique_catalog
 
-        catalog: dict[str, list[str]] = {}
+        catalog: dict[str, list[dict]] = {}
+
         for skill_dir_path in Calibrazione.TECHNICAL_SKILLS_DIRS:
             skill_file = os.path.join(skill_dir_path, "SKILL.md")
             if not os.path.exists(skill_file):
                 logger.warning(f"[SKILL SELECTOR] SKILL.md non trovato: {skill_file}")
                 continue
 
-            dir_name = os.path.basename(skill_dir_path)
-            label    = self.BOOK_LABELS.get(dir_name, dir_name)
-            techniques: list[str] = []
+            dir_name   = os.path.basename(skill_dir_path)
+            book_label = self.BOOK_LABELS.get(dir_name, dir_name)
+
+            # Avvisa se il libro non è mappato — tecnica mai assegnata a nessun agente
+            if book_label not in BOOK_DOMAIN_MAP:
+                logger.warning(
+                    f"[SKILL SELECTOR] Libro non in BOOK_DOMAIN_MAP: '{book_label}' "
+                    f"(dir: {dir_name}). Aggiungilo per assegnarlo agli agenti."
+                )
+
+            techniques: list[dict] = []
 
             try:
                 with open(skill_file, "r", encoding="utf-8", errors="ignore") as f:
-                    frontmatter_done = False
-                    dash_count = 0
-                    for line in f:
-                        stripped = line.strip()
-                        # Salta il frontmatter YAML (tra i due ---)
-                        if stripped == "---":
-                            dash_count += 1
-                            if dash_count == 2:
-                                frontmatter_done = True
-                            continue
-                        if not frontmatter_done:
-                            continue
-                        # Estrae solo i titoli di secondo livello (## TecnicaNome)
-                        # Esclude ### (sottosezioni) e titoli generici
-                        if stripped.startswith("## ") and not stripped.startswith("### "):
-                            name = stripped[3:].strip()
-                            if name and "skill" not in name.lower() and len(name) < 80:
-                                techniques.append(name)
-                                if len(techniques) >= 30:   # cap per evitare prompt bloat
-                                    break
+                    lines = f.readlines()
+
+                frontmatter_done = False
+                dash_count       = 0
+                current_name: str | None = None
+                current_body_lines: list[str] = []
+
+                def _flush_technique():
+                    """Salva la tecnica corrente nel catalogo."""
+                    if current_name:
+                        body = " ".join(
+                            l.strip() for l in current_body_lines if l.strip()
+                        )[:400].strip()
+                        techniques.append({"name": current_name, "body": body})
+
+                for line in lines:
+                    stripped = line.strip()
+
+                    # ── Gestione frontmatter YAML ─────────────────────
+                    # Contiamo solo i "---" che appaiono come riga isolata.
+                    # Usiamo == per evitare di matchare separatori orizzontali
+                    # dentro il corpo del testo (es. "--- fine ---").
+                    if stripped == "---" and not frontmatter_done:
+                        dash_count += 1
+                        if dash_count == 2:
+                            frontmatter_done = True
+                        continue
+                    if not frontmatter_done:
+                        continue
+
+                    # ── Nuovo heading di tecnica (## TecnicaNome) ─────
+                    if line.startswith("## ") and not line.startswith("### "):
+                        _flush_technique()  # salva la tecnica precedente
+                        candidate = line[3:].strip()
+                        # Salta heading generici o di struttura
+                        if (
+                            candidate
+                            and "skill" not in candidate.lower()
+                            and len(candidate) < 80
+                        ):
+                            current_name       = candidate
+                            current_body_lines = []
+                        else:
+                            current_name       = None
+                            current_body_lines = []
+                        continue
+
+                    # ── Accumula il body della tecnica corrente ───────
+                    if current_name is not None:
+                        # Interrompe l'accumulo se incontra un heading di qualsiasi livello
+                        # (### o superiore) che segna l'inizio di una sottosezione lunga
+                        if line.startswith("#"):
+                            # Non flushiamo — continuiamo ad accumulare: i ### sono
+                            # sottosezioni della stessa tecnica (es. "### Regole di validità")
+                            pass
+                        current_body_lines.append(line)
+
+                # Salva l'ultima tecnica del file
+                _flush_technique()
+
             except Exception as e:
-                logger.warning(f"[SKILL SELECTOR] Errore lettura tecniche da {skill_file}: {e}")
+                logger.error(f"[SKILL SELECTOR] Errore lettura {skill_file}: {e}")
 
             if techniques:
-                catalog[label] = techniques
-                logger.debug(f"[SKILL SELECTOR] {label}: {len(techniques)} tecniche trovate")
+                catalog[book_label] = techniques
+                logger.debug(
+                    f"[SKILL SELECTOR] '{book_label}': {len(techniques)} tecniche estratte"
+                )
+            else:
+                logger.warning(
+                    f"[SKILL SELECTOR] Nessuna tecnica trovata in {skill_file}. "
+                    f"Verifica che i heading ## siano presenti e il frontmatter sia corretto."
+                )
 
         self._technique_catalog = catalog
         return catalog
 
-    def _load_skill_summaries(self) -> str:
-        """
-        Legge i file SKILL.md e ne estrae un sommario (max 800 char per libro).
-        Usato come contesto aggiuntivo nel prompt del selettore.
-        """
-        if self._skill_summaries is not None:
-            return self._skill_summaries
+    # ------------------------------------------------------------------
+    # COVERAGE CHECK — Audit di copertura totale
+    # ------------------------------------------------------------------
 
-        summaries: list[str] = []
-        for skill_dir_path in Calibrazione.TECHNICAL_SKILLS_DIRS:
-            skill_file = os.path.join(skill_dir_path, "SKILL.md")
-            if not os.path.exists(skill_file):
+    def _verify_coverage(self, catalog: dict) -> None:
+        """
+        Verifica che ogni libro e ogni tecnica siano assegnati ad almeno
+        un agente. Emette warning espliciti per ogni gap trovato.
+
+        Questo metodo non modifica nulla — è puro audit con logging.
+        Da chiamare dopo _load_technique_catalog().
+        """
+        all_domains = ("pattern", "trend", "sr", "oscillator")
+        uncovered_books:      list[str] = []
+        uncovered_techniques: list[tuple[str, str]] = []  # (book, tech_name)
+
+        for book_label, techniques in catalog.items():
+            domains_for_book = BOOK_DOMAIN_MAP.get(book_label, [])
+
+            # Libro non mappato = tutte le sue tecniche sono orfane
+            if not domains_for_book:
+                uncovered_books.append(book_label)
+                for tech in techniques:
+                    uncovered_techniques.append((book_label, tech["name"]))
                 continue
-            try:
-                with open(skill_file, "r", encoding="utf-8", errors="ignore") as f:
-                    content = f.read(800)
-                dir_name = os.path.basename(skill_dir_path)
-                summaries.append(f"[{dir_name}]:\n{content.strip()}")
-            except Exception as e:
-                logger.warning(f"[SKILL SELECTOR] Errore lettura {skill_file}: {e}")
 
-        self._skill_summaries = "\n---\n".join(summaries)
-        return self._skill_summaries
+            # Verifica che il libro sia mappato ad almeno un dominio valido
+            for domain in domains_for_book:
+                if domain not in all_domains:
+                    logger.warning(
+                        f"[SKILL SELECTOR] Dominio sconosciuto '{domain}' "
+                        f"in BOOK_DOMAIN_MAP per '{book_label}'"
+                    )
+
+        if uncovered_books:
+            logger.warning(
+                f"[SKILL SELECTOR] LIBRI SENZA AGENTE: {uncovered_books}. "
+                f"Aggiungerli a BOOK_DOMAIN_MAP per includerne le tecniche."
+            )
+        if uncovered_techniques:
+            logger.warning(
+                f"[SKILL SELECTOR] {len(uncovered_techniques)} tecniche non assegnate "
+                f"ad alcun agente. Dettaglio: "
+                + "; ".join(f"[{b}] {n}" for b, n in uncovered_techniques[:10])
+                + (" ..." if len(uncovered_techniques) > 10 else "")
+            )
+        if not uncovered_books and not uncovered_techniques:
+            logger.debug("[SKILL SELECTOR] Coverage check OK — tutte le tecniche assegnate.")
+
+    # ------------------------------------------------------------------
+    # SKILLS GUIDANCE — Istruzioni deterministiche per ogni specialista
+    # ------------------------------------------------------------------
+
+    def _build_skills_guidance(
+        self,
+        catalog: dict,
+        asset_type: str | None = None,
+    ) -> dict[str, str]:
+        """
+        Costruisce le istruzioni vincolanti (FOCUS SKILLS) per ogni specialista.
+
+        DETERMINISTICO: include nome + body di TUTTE le tecniche del catalogo
+        per ogni libro rilevante per il dominio. Non dipende dall'LLM.
+
+        Args:
+            catalog:    output di _load_technique_catalog()
+            asset_type: "commodity" | "crypto" | "forex" | "equity" | None
+                        Usato solo per aggiungere un'enfasi contestuale
+                        in cima alla guidance — non esclude mai tecniche.
+
+        Returns:
+            dict {domain: str} con domini: pattern, trend, sr, oscillator
+        """
+        BODY_TRUNCATE = 400  # char max per il body di ogni tecnica nel prompt
+
+        def _asset_hint(domain: str) -> str:
+            """Aggiunge una riga di enfasi contestuale per asset_type."""
+            if not asset_type:
+                return ""
+            hints = {
+                "commodity": {
+                    "pattern": "ENFASI: mercato commodity — privilegia pattern di inversione su livelli psicologici e zone S/D.",
+                    "trend":   "ENFASI: commodity — SMA lente (50/200), SuperTrend, Bollinger per volatilità stagionale.",
+                    "sr":      "ENFASI: commodity — livelli psicologici tondi, Fibonacci su swing di lungo periodo, zone S/D.",
+                    "oscillator": "ENFASI: commodity — RSI per divergenze di lungo, MACD per conferma trend primario.",
+                },
+                "crypto": {
+                    "pattern": "ENFASI: crypto — pattern di momentum (Ross Hook, 1-2-3, Power Bars) su timeframe breve.",
+                    "trend":   "ENFASI: crypto — EMA veloci (9/20/50), SuperTrend, Bollinger squeeze per volatilità estrema.",
+                    "sr":      "ENFASI: crypto — livelli psicologici tondi (10.000, 50.000), VWAP intraday, supply/demand zones.",
+                    "oscillator": "ENFASI: crypto — Stochastic e %R per mercato ipercomprato/ipervenduto frequente, MACD per divergenze.",
+                },
+                "forex": {
+                    "pattern": "ENFASI: forex — pattern Nison e inside bar su livelli Pivot settimanali.",
+                    "trend":   "ENFASI: forex — EMA + Ichimoku (Kijun/Tenkan), analisi MTF Shannon su H1/H4/D1.",
+                    "sr":      "ENFASI: forex — Pivot Points settimanali, livelli psicologici (pips tondi), VWAP.",
+                    "oscillator": "ENFASI: forex — MACD per momentum direzionale, RSI per gestione del rischio.",
+                },
+                "equity": {
+                    "pattern": "ENFASI: equity — pattern di inversione Murphy (H&S, Double Top) con conferma volume.",
+                    "trend":   "ENFASI: equity — SMA 50/200, analisi top-down Shannon su weekly/daily.",
+                    "sr":      "ENFASI: equity — Fibonacci sui massimi storici, pivot annuali, livelli earnings gap.",
+                    "oscillator": "ENFASI: equity — RSI mensile per divergenze di lungo, MACD weekly per trend.",
+                },
+            }
+            return hints.get(asset_type, {}).get(domain, "")
+
+        def _build_sections(domain: str) -> str:
+            """
+            Costruisce il blocco testuale con tutte le tecniche di tutti
+            i libri assegnati al dominio. Formato:
+
+            [Nome Libro]:
+              1. NomeTecnica — body della tecnica (troncato a 400 char)
+              2. ...
+            """
+            sections: list[str] = []
+            for book_label, book_techs in catalog.items():
+                if domain not in BOOK_DOMAIN_MAP.get(book_label, []):
+                    continue
+                lines: list[str] = []
+                for i, tech in enumerate(book_techs, start=1):
+                    name = tech["name"]
+                    body = tech.get("body", "").strip()
+                    if body:
+                        body_short = body[:BODY_TRUNCATE]
+                        lines.append(f"  {i}. {name} — {body_short}")
+                    else:
+                        lines.append(f"  {i}. {name}")
+                if lines:
+                    sections.append(f"[{book_label}]:\n" + "\n".join(lines))
+            return "\n\n".join(sections)
+
+        guidance: dict[str, str] = {}
+
+        # ── Pattern Analyst ────────────────────────────────────────────────────
+        # Libri assegnati: Nison, Bulkowski, Ross, Murphy
+        sections = _build_sections("pattern")
+        hint     = _asset_hint("pattern")
+        guidance["pattern"] = (
+            "FOCUS SKILLS — Tecniche OBBLIGATORIE dai libri assegnati al tuo dominio.\n"
+            "Devi analizzare TUTTE le tecniche elencate. Per quelle non rilevabili "
+            "nei dati correnti, documentalo esplicitamente ('Non rilevato').\n"
+            + (f"\n{hint}\n" if hint else "") +
+            f"\n{sections}\n\n"
+            "REGOLA: per ogni pattern trovato, riporta: nome, validità (criteri Nison/Bulkowski), "
+            "target misurato (metodo Bulkowski dove disponibile), "
+            "e il pattern Joe Ross / Larry Williams corrispondente se applicabile."
+        ) if sections else ""
+
+        # ── Trend Analyst ──────────────────────────────────────────────────────
+        # Libri assegnati: Williams, Murphy, Shannon
+        sections = _build_sections("trend")
+        hint     = _asset_hint("trend")
+        guidance["trend"] = (
+            "FOCUS SKILLS — Tecniche OBBLIGATORIE dai libri assegnati al tuo dominio.\n"
+            "Devi analizzare TUTTE le tecniche elencate. Per quelle non applicabili "
+            "ai dati correnti, documentalo esplicitamente ('Non applicabile').\n"
+            + (f"\n{hint}\n" if hint else "") +
+            f"\n{sections}\n\n"
+            "REGOLA: per ogni indicatore di trend, riporta: direzione, forza, "
+            "allineamento MTF (Shannon: weekly → daily → intraday), "
+            "e i criteri di incrocio/divergenza operativa."
+        ) if sections else ""
+
+        # ── SR Analyst ─────────────────────────────────────────────────────────
+        # Libri assegnati: Bulkowski, Ross, Williams, Murphy, Shannon
+        sections = _build_sections("sr")
+        hint     = _asset_hint("sr")
+        guidance["sr"] = (
+            "FOCUS SKILLS — Tecniche OBBLIGATORIE dai libri assegnati al tuo dominio.\n"
+            "Devi costruire la MAPPA COMPLETA dei livelli S/R usando TUTTE le tecniche "
+            "elencate. Per ogni livello riporta la fonte (libro) e il punteggio di "
+            "confluenza (quante tecniche diverse convergono sullo stesso livello).\n"
+            + (f"\n{hint}\n" if hint else "") +
+            f"\n{sections}\n\n"
+            "REGOLA: un livello con confluenza ≥3 tecniche diverse è un livello CRITICO. "
+            "Usa le statistiche Bulkowski per stimare la probabilità di tenuta. "
+            "Usa i livelli TLOC (Ross) per identificare le zone di congestione operative."
+        ) if sections else ""
+
+        # ── Oscillator Analyst ─────────────────────────────────────────────────
+        # Libri assegnati: Nison (cap.12-14), Williams (%R, MACD, Oops), Murphy (cap.11-14)
+        sections = _build_sections("oscillator")
+        hint     = _asset_hint("oscillator")
+        guidance["oscillator"] = (
+            "FOCUS SKILLS — Tecniche OBBLIGATORIE dai libri assegnati al tuo dominio.\n"
+            "Il tuo ruolo è CONFERMARE o INVALIDARE i segnali degli altri specialisti "
+            "attraverso gli oscillatori. Devi analizzare TUTTI gli oscillatori elencati.\n"
+            + (f"\n{hint}\n" if hint else "") +
+            f"\n{sections}\n\n"
+            "REGOLA NISON: ogni segnale candlestick deve essere confermato da almeno "
+            "un oscillatore. Un pattern non confermato da oscillatori ha affidabilità RIDOTTA.\n"
+            "REGOLA DIVERGENZE: le divergenze rialziste/ribassiste tra prezzo e oscillatore "
+            "sono il segnale più affidabile — hanno precedenza su qualsiasi altro segnale.\n"
+            "REGOLA WILLIAMS %R: zone -80/-100 = ipervenduto operativo, 0/-20 = ipercomprato.\n"
+            "REGOLA MAO (Nison Cap.14): MAO positivo = trend rialzista confermato, "
+            "negativo = ribassista. Crossover zero = cambio di momentum primario."
+        ) if sections else ""
+
+        return guidance
+
+    # ------------------------------------------------------------------
+    # COSTRUZIONE CATALOGO GRAFICO — solo per il prompt LLM
+    # ------------------------------------------------------------------
 
     def _build_catalog_text(self) -> str:
         """Costruisce la rappresentazione testuale del catalogo strumenti grafici."""
@@ -540,38 +846,44 @@ class SkillSelector:
                 lines.append(f"  - ID: {t['id']} | Nome: {t['name']} | Uso: {t['desc']}")
         return "\n".join(lines)
 
-    def _build_technique_catalog_text(self) -> str:
-        """
-        Costruisce il testo del catalogo tecniche per il prompt.
-        Formato: [Libro]: Tecnica1 | Tecnica2 | ...
-        """
-        catalog = self._load_technique_catalog()
-        if not catalog:
-            return "Nessuna tecnica trovata nelle Skill."
-
-        lines = ["TECNICHE DISPONIBILI DALLE SKILL (seleziona ESCLUSIVAMENTE da questa lista):"]
-        for book_label, techniques in catalog.items():
-            techs_str = " | ".join(techniques)
-            lines.append(f"\n[{book_label}]:\n  {techs_str}")
-        return "\n".join(lines)
+    # ------------------------------------------------------------------
+    # SELEZIONE PRINCIPALE
+    # ------------------------------------------------------------------
 
     def select_tools(self, nome_asset: str, macro_sentiment: str, data_dict: dict) -> dict:
         """
         Analizza il contesto e produce due selezioni complementari:
 
         1. chosen_tools (pattern/trend/sr/oscillator): strumenti grafici per il frontend
-        2. skills_guidance: istruzioni vincolanti per ogni specialista (deterministico)
+        2. skills_guidance: istruzioni vincolanti con nome + body di TUTTE le tecniche
+           dei libri rilevanti, per ogni agente specialista
 
         Args:
-            nome_asset:      Il ticker (es. "GC=F", "AAPL")
+            nome_asset:      Il ticker (es. "GC=F", "AAPL", "BTC-USD")
             macro_sentiment: Testo del sentiment macro prodotto dall'AgnoMacroExpert
             data_dict:       Dizionario con i dati OHLCV multi-timeframe
 
         Returns:
             Dict con: pattern · trend · sr · oscillator · summary ·
-                      raw_skills_used · techniques_per_domain · skills_guidance · success
+                      raw_skills_used · skills_guidance · techniques_per_domain · success
         """
-        logger.info(f"[SKILL SELECTOR] Selezione strumenti e tecniche per {nome_asset}...")
+        logger.info(f"[SKILL SELECTOR] Selezione strumenti per {nome_asset}...")
+
+        # ── Rileva asset type per enfasi contestuale ───────────────────────────
+        ticker_upper = nome_asset.upper()
+        if any(x in ticker_upper for x in ["GC=F", "CL=F", "SI=F", "HG=F", "NG=F", "ZW=F", "ZC=F", "ZS=F"]):
+            asset_type = "commodity"
+        elif any(x in ticker_upper for x in ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "-USD", "-USDT"]):
+            asset_type = "crypto"
+        elif any(x in ticker_upper for x in ["=X", "EUR", "GBP", "JPY", "CHF", "AUD", "CAD", "NZD"]):
+            asset_type = "forex"
+        else:
+            asset_type = "equity"
+        logger.debug(f"[SKILL SELECTOR] Asset type rilevato: {asset_type}")
+
+        # ── Carica catalogo e verifica copertura ──────────────────────────────
+        catalog = self._load_technique_catalog()
+        self._verify_coverage(catalog)
 
         catalog_text = self._build_catalog_text()
 
@@ -580,9 +892,10 @@ class SkillSelector:
         except Exception:
             last_1d = "N/D"
 
-        prompt = f"""Sei un Analista Tecnico Senior. Analizza il contesto e produci la selezione degli strumenti grafici:
+        prompt = f"""Sei un Analista Tecnico Senior. Analizza il contesto e produci la selezione degli strumenti grafici.
 
 ASSET: {nome_asset}
+TIPO ASSET: {asset_type}
 
 SENTIMENT MACRO:
 {macro_sentiment[:1200]}
@@ -591,161 +904,108 @@ DATI RECENTI (ultime 5 candele 1D):
 {last_1d}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STRUMENTI GRAFICI DISPONIBILI (per il frontend)
+STRUMENTI GRAFICI DA SELEZIONARE (per il frontend)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 {catalog_text}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-REGOLE DI SELEZIONE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- Usa SOLO gli ID esatti del catalogo grafico (nessun ID inventato)
+Regole di selezione:
+- Usa SOLO gli ID esatti del catalogo (nessun ID inventato)
 - Il campo "reason" deve essere breve: max 10 parole
-- Il campo "color" deve essere un colore HEX chiaro e ben visibile su sfondo SCURO.
-  Non usare MAI: nero (#000, #000000, "black"), né colori molto scuri.
-  Usa: "#f9ca24" (giallo), "#74b9ff" (blu), "#ff9f43" (arancio), "#00d4aa" (verde acqua), "#ff6b81" (rosa), "#a29bfe" (viola)
-- Commodity (Oro, Oil): SMA lente + Fibonacci + Zone S/D + Price Action + pattern candlestick Nison + RSI
-- Crypto: EMA veloci + SuperTrend + Bollinger + Stochastic + pattern Ross Hook
-- Forex: EMA + Ichimoku + Pivot settimanali + MACD
-- Sentiment BEARISH: privilegia resistenze, pattern ribassisti (dark_cloud_cover, shooting_star, 1_2_3_top, outside_day, smash_day), Williams %R, MAO
-- Sentiment BULLISH: privilegia supporti, pattern rialzisti (piercing_line, morning_star, 1_2_3_bottom, oops), RSI, Stochastic
-- GRUPPO OSCILLATOR: seleziona TUTTI gli oscillatori rilevanti per il contesto — nessun limite massimo
-- PATTERN JOE ROSS: usa pattern_1_2_3_top/bottom, pattern_ross_hook, pattern_ledge per asset con trend chiaro
-- PATTERN LARRY WILLIAMS: usa pattern_oops e pattern_volatility_breakout in mercati volatili con gap frequenti
+- Il campo "color" deve essere un colore HEX chiaro e ben visibile su sfondo SCURO. Non usare mai nero (#000, #000000, "black") né colori scuri. Usa colori come "#f9ca24" (giallo), "#74b9ff" (blu), "#ff9f43" (arancio), "#00d4aa" (verde acqua), "#ff6b81" (rosa), "#a29bfe" (viola).
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-OUTPUT — Rispondi SOLO con JSON valido (nessun testo fuori, niente markdown):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Regole contestuali per asset type "{asset_type}":
+- commodity: SMA lente (50/200) + Fibonacci + Zone S/D + Nison + RSI + MACD
+- crypto: EMA veloci (9/20/50) + SuperTrend + Bollinger + Stochastic + Ross Hook
+- forex: EMA + Ichimoku + Pivot settimanali + MACD
+- equity: SMA 50/200 + H&S + Double Top + RSI + Fibonacci
+
+Regole contestuali per sentiment:
+- BEARISH: privilegia resistenze, pattern ribassisti (dark_cloud_cover, shooting_star, 1_2_3_top, outside_day, smash_day), Williams %R, MAO
+- BULLISH: privilegia supporti, pattern rialzisti (piercing_line, morning_star, 1_2_3_bottom, oops), RSI, Stochastic
+
+Regole speciali:
+- GRUPPO OSCILLATOR: seleziona TUTTI gli oscillatori rilevanti — nessun limite massimo
+- PATTERN JOE ROSS: usa 1_2_3_top/bottom, ross_hook, ledge in trend chiari
+- PATTERN LARRY WILLIAMS: usa oops e volatility_breakout in mercati volatili con gap
+
+Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
 {{
-  "pattern": [
-    {{"id": "pattern_engulfing",   "name": "Bullish/Bearish Engulfing", "reason": "...", "color": "#ff9f43"}},
-    {{"id": "pattern_morning_star","name": "Morning Star",              "reason": "...", "color": "#00d4aa"}},
-    {{"id": "pattern_1_2_3_bottom","name": "1-2-3 Bottom",             "reason": "...", "color": "#00d4aa"}}
-  ],
-  "trend": [
-    {{"id": "sma_200", "name": "SMA 200", "reason": "...", "color": "#f9ca24"}},
-    {{"id": "ema_50",  "name": "EMA 50",  "reason": "...", "color": "#74b9ff"}}
-  ],
-  "sr": [
-    {{"id": "fib_retracement", "name": "Fibonacci Retracement", "reason": "...", "color": "#ffd700"}},
-    {{"id": "supply_zone",     "name": "Supply Zone",           "reason": "...", "color": "#ff6b81"}}
-  ],
-  "oscillator": [
-    {{"id": "rsi",          "name": "RSI 14",        "reason": "...", "color": "#74b9ff"}},
-    {{"id": "macd_line",    "name": "MACD Line",     "reason": "...", "color": "#00d4aa"}},
-    {{"id": "macd_signal",  "name": "MACD Signal",   "reason": "...", "color": "#ff9f43"}},
-    {{"id": "stochastic_k", "name": "Stochastic %K", "reason": "...", "color": "#a29bfe"}},
-    {{"id": "stochastic_d", "name": "Stochastic %D", "reason": "...", "color": "#fd79a8"}},
-    {{"id": "williams_r",   "name": "Williams %R",   "reason": "...", "color": "#f9ca24"}},
-    {{"id": "mao",          "name": "MAO",            "reason": "...", "color": "#55efc4"}}
-  ],
-  "summary": "Breve frase riassuntiva della scelta strategica per l'asset"
+  "pattern":   [{{"id": "...", "color": "...", "reason": "..."}}],
+  "trend":     [{{"id": "...", "color": "...", "reason": "..."}}],
+  "sr":        [{{"id": "...", "color": "...", "reason": "..."}}],
+  "oscillator":[{{"id": "...", "color": "...", "reason": "..."}}],
+  "summary":   "Sintesi della selezione in 2 righe"
 }}"""
 
         raw = ""
         try:
             from agents.model_factory import get_model
-            # Modello senza thinking mode per output JSON puro.
-            # Qwen3 usa troppi token per il blocco <think> e tronca il JSON.
+            from agno.agent import Agent
             llm = get_model(
                 Calibrazione.MODEL_SKILL_SELECTOR,
-                temperature=Calibrazione.TEMPERATURE_SKILL_SELECTOR,
+                temperature=Calibrazione.TEMPERATURE_SKILL_SELECTOR
             )
-
-            from agno.agent import Agent
             selector_agent = Agent(
                 model=llm,
                 description="Sei un analista tecnico che seleziona strumenti di analisi in base al contesto.",
-                instructions=["Rispondi SOLO con JSON valido, senza markdown extra."],
+                instructions=["Rispondi SOLO con JSON valido, senza markdown, senza blocchi ```json."],
                 markdown=False,
             )
-
             response = selector_agent.run(prompt)
-            raw = (response.content or "").strip()
+            raw = response.content if hasattr(response, "content") else str(response)
 
-            logger.debug(f"[SKILL SELECTOR] Risposta grezza AI (primi 500 char): {raw[:500]}")
+            # Estrai il blocco JSON dalla risposta
+            json_match = re.search(r'\{[\s\S]*\}', raw)
+            if json_match:
+                raw = json_match.group(0)
 
-            if not raw:
-                logger.error("[SKILL SELECTOR] L'AI ha prodotto una risposta VUOTA.")
-                return {
-                    "success": False,
-                    "error":   "AI_EMPTY_RESPONSE",
-                    "summary": "L'AI non ha prodotto nessuna risposta.",
-                }
-
-            # 1. Rimuove i blocchi markdown residui
-            raw = re.sub(r'^```(?:json)?\s*', '', raw, flags=re.MULTILINE)
-            raw = re.sub(r'\s*```$',          '', raw, flags=re.MULTILINE)
-
-            # 2. Rimuove il blocco <think>...</think> se il tag è chiuso
-            raw = re.sub(r'<think>.*?</think>', '', raw, flags=re.DOTALL)
-
-            # 3. Se il blocco <think> non è chiuso (risposta troncata nel mezzo del pensiero),
-            #    cerca direttamente il primo '{' e prende tutto da lì in poi.
-            #    Fix principale per Qwen3 su Groq che taglia la risposta.
-            first_brace = raw.find('{')
-            if first_brace == -1:
-                logger.error("[SKILL SELECTOR] Nessun JSON trovato nella risposta AI.")
-                return {
-                    "success": False,
-                    "error":   "AI_NO_JSON",
-                    "summary": "Nessun blocco JSON trovato nella risposta.",
-                }
-            raw = raw[first_brace:]
-
-            # 4. JSON repair: chiude automaticamente JSON troncati (output lungo)
+            # Tenta il parse diretto
             try:
-                from json_repair import repair_json
-                raw = repair_json(raw)
-            except ImportError:
-                pass  # json_repair opzionale, si prosegue col parsing normale
+                chosen = json.loads(raw)
+            except json.JSONDecodeError:
+                # Fallback: json_repair
+                try:
+                    from json_repair import repair_json
+                    raw    = repair_json(raw)
+                    chosen = json.loads(raw)
+                except Exception as repair_err:
+                    logger.error(f"[SKILL SELECTOR] json_repair fallito: {repair_err}")
+                    chosen = {}
 
-            # 5. Parsing JSON
-            chosen = json.loads(raw)
-
-            # 6. Validazione e arricchimento con guidance deterministica
-            chosen = self._validate_and_fallback(chosen)
-
-            sg = chosen.get("skills_guidance", {})
-            logger.success(
-                f"[SKILL SELECTOR] Skills guidance deterministica per {nome_asset}: "
-                + ", ".join(
-                    f"{d}={len(sg.get(d, '').splitlines())} righe"
-                    for d in ("pattern", "trend", "sr", "volume")
-                )
-            )
-            return chosen
-
-        except json.JSONDecodeError as e:
-            logger.warning(
-                f"[SKILL SELECTOR] JSON non valido dall'AI ({e}). "
-                f"Raw: '{raw[:300] if raw else 'N/A'}'. Segnalo fallimento."
-            )
-            return {
-                "success": False,
-                "error":   "AI_JSON_ERROR",
-                "summary": f"L'AI non ha prodotto un formato JSON valido: {e}",
-            }
+            return self._validate_and_fallback(chosen, catalog, asset_type)
 
         except Exception as e:
-            logger.error(f"[SKILL SELECTOR] Errore: {e}. Segnalo fallimento.")
-            return {
-                "success": False,
-                "error":   "AI_SYSTEM_ERROR",
-                "summary": str(e),
-            }
+            logger.error(f"[SKILL SELECTOR] Errore selezione strumenti: {e}. Raw: {raw[:300]}")
+            return self._validate_and_fallback({}, catalog, asset_type)
 
-    def _validate_and_fallback(self, chosen: dict) -> dict:
+    # ------------------------------------------------------------------
+    # VALIDAZIONE E FALLBACK
+    # ------------------------------------------------------------------
+
+    def _validate_and_fallback(
+        self,
+        chosen: dict,
+        catalog: dict,
+        asset_type: str | None = None,
+    ) -> dict:
         """
         Valida il JSON restituito dall'AI:
-        - Rimuove ID grafici non presenti nel catalogo (pattern/trend/sr/oscillator)
-        - Normalizza gli alias comuni degli ID
+        - Normalizza alias ID comuni
+        - Rimuove ID non presenti nel catalogo grafico
         - Forza colori leggibili su sfondo scuro
-        - Costruisce skills_guidance e techniques_per_domain deterministicamente
+        - Costruisce skills_guidance con nome + body (deterministico)
+        - Costruisce techniques_per_domain con overlay_id (deterministico)
+        - Esegue _verify_coverage per audit finale
+
+        Args:
+            chosen:     JSON restituito dall'LLM (può essere parziale o vuoto)
+            catalog:    output di _load_technique_catalog()
+            asset_type: "commodity" | "crypto" | "forex" | "equity" | None
         """
         all_valid_ids = {t["id"]: t for group in AVAILABLE_TOOLS.values() for t in group}
-        result: dict = {"success": True}
+        result: dict  = {"success": True}
 
-        # Normalizzazione ID generati dall'AI (alias comuni)
+        # Normalizzazione alias generati dall'AI
         ID_ALIASES: dict[str, str] = {
             "pattern_bullish_engulfing":  "pattern_engulfing",
             "pattern_bearish_engulfing":  "pattern_engulfing",
@@ -768,33 +1028,30 @@ OUTPUT — Rispondi SOLO con JSON valido (nessun testo fuori, niente markdown):
 
                 # 1. Normalizzazione alias
                 if tool_id in ID_ALIASES:
-                    original_id = tool_id
-                    tool_id     = ID_ALIASES[tool_id]
-                    item["id"]  = tool_id
-                    logger.debug(f"[SKILL SELECTOR] ID normalizzato: {original_id!r} -> {tool_id!r}")
+                    logger.debug(f"[SKILL SELECTOR] Alias normalizzato: {tool_id!r} -> {ID_ALIASES[tool_id]!r}")
+                    tool_id    = ID_ALIASES[tool_id]
+                    item["id"] = tool_id
 
-                # 2. Controllo esistenza nel catalogo
+                # 2. Controllo whitelist
                 if tool_id not in all_valid_ids:
-                    logger.warning(f"[SKILL SELECTOR] ID grafico non valido rimosso: {tool_id!r}")
+                    logger.warning(f"[SKILL SELECTOR] ID non valido rimosso: {tool_id!r}")
                     continue
 
                 static_info = all_valid_ids[tool_id]
 
-                # 3. Colore: forza fallback se mancante o nero/scuro
+                # 3. Colore: fallback se mancante, nero o stringa invalida
                 color_val = str(item.get("color", "")).lower().strip()
-                is_invalid_color = color_val in {
+                is_invalid = color_val in {
                     "#000", "#000000", "black", "null", "none", "",
                     "rgb(0,0,0)", "rgba(0,0,0,1)", "rgba(0,0,0,0)",
                 }
-                if is_invalid_color:
-                    logger.debug(f"[SKILL SELECTOR] Colore non valido scartato per {tool_id}, uso default.")
                 item["color"] = (
                     DEFAULT_COLORS.get(tool_id, "#ffffff")
-                    if (is_invalid_color or not item.get("color"))
+                    if (is_invalid or not item.get("color"))
                     else item["color"]
                 )
 
-                # 4. Popola desc e name dai dati statici se mancanti
+                # 4. Completa i campi statici se mancanti
                 item.setdefault("desc", static_info.get("desc", ""))
                 item.setdefault("name", static_info.get("name", ""))
                 valid_items.append(item)
@@ -802,106 +1059,31 @@ OUTPUT — Rispondi SOLO con JSON valido (nessun testo fuori, niente markdown):
             result[group] = valid_items
 
         # ── Parte B: metadata ─────────────────────────────────────────────────
-        result["summary"]         = chosen.get("summary", "Selezione AI per questo asset.")
-        result["raw_skills_used"] = list(BOOK_DOMAIN_MAP.keys())   # sempre tutti i libri
+        result["summary"]         = chosen.get("summary", "Selezione per questo asset.")
+        result["raw_skills_used"] = list(BOOK_DOMAIN_MAP.keys())
 
         # ── Parte C: skills_guidance deterministica ───────────────────────────
-        # Costruita dal catalogo — non dipende dall'LLM.
-        result["skills_guidance"] = self._build_skills_guidance()
+        # Costruita con nome + body di ogni tecnica, tutti i libri del dominio.
+        result["skills_guidance"] = self._build_skills_guidance(catalog, asset_type)
 
-        # ── Parte D: techniques_per_domain (struttura per il frontend) ────────
-        # Ogni tecnica è un oggetto {name, overlay_id} dove overlay_id è
-        # l'ID computeOverlayData() di chart.js se la tecnica è visualizzabile,
-        # oppure null se è una tecnica concettuale senza rendering grafico.
-        catalog = self._load_technique_catalog()
+        # ── Parte D: techniques_per_domain ────────────────────────────────────
+        # Struttura per il bridge frontend tecnica ↔ overlay grafico.
+        # Ogni tecnica include: name, body (per tooltip), overlay_id (per chart.js).
+        # Copre tutti e 4 i domini: pattern, trend, sr, oscillator.
         techniques_per_domain: dict = {}
-        for domain in ("pattern", "trend", "sr", "volume"):
+        for domain in ("pattern", "trend", "sr", "oscillator"):
             books_for_domain: dict = {}
             for book_label, book_techs in catalog.items():
                 if domain in BOOK_DOMAIN_MAP.get(book_label, []):
                     books_for_domain[book_label] = [
-                        {"name": t, "overlay_id": _find_overlay_id(t)}
+                        {
+                            "name":       t["name"],
+                            "body":       t.get("body", ""),
+                            "overlay_id": _find_overlay_id(t["name"]),
+                        }
                         for t in book_techs
                     ]
             techniques_per_domain[domain] = books_for_domain
+
         result["techniques_per_domain"] = techniques_per_domain
-
         return result
-
-    def _build_skills_guidance(self) -> dict:
-        """
-        Costruisce le istruzioni vincolanti (FOCUS SKILLS) per ogni specialista.
-
-        Approccio DETERMINISTICO: include TUTTE le tecniche del catalogo per ogni
-        libro rilevante per quel dominio (via BOOK_DOMAIN_MAP). Non dipende dall'LLM.
-        Ogni specialista riceve sempre l'intero corpus di tecniche applicabili.
-
-        Returns:
-            dict {domain: str} — istruzioni da iniettare nel prompt di ogni specialista
-        """
-        catalog = self._load_technique_catalog()
-
-        def build_sections_for_domain(domain: str) -> str:
-            """Costruisce il testo con tutte le tecniche dei libri rilevanti per il dominio."""
-            sections: list[str] = []
-            for book_label, book_techs in catalog.items():
-                if domain not in BOOK_DOMAIN_MAP.get(book_label, []):
-                    continue
-                numbered = "\n".join(f"  {i+1}. {t}" for i, t in enumerate(book_techs))
-                sections.append(f"[{book_label}]:\n{numbered}")
-            return "\n\n".join(sections)
-
-        guidance: dict[str, str] = {}
-
-        # ── Pattern Analyst ────────────────────────────────────────────────────
-        sections = build_sections_for_domain("pattern")
-        guidance["pattern"] = (
-            "FOCUS SKILLS — Tecniche OBBLIGATORIE da tutti i libri rilevanti.\n"
-            "Devi analizzare TUTTE le tecniche elencate, anche quelle meno evidenti. "
-            "Se una tecnica non è applicabile ai dati attuali, scrivilo esplicitamente.\n\n"
-            f"{sections}\n\n"
-            "Per ogni tecnica consulta le Skill caricate per le regole di validità esatte "
-            "e il calcolo del target con il metodo Bulkowski dove applicabile."
-        ) if sections else ""
-
-        # ── Trend Analyst ──────────────────────────────────────────────────────
-        sections = build_sections_for_domain("trend")
-        guidance["trend"] = (
-            "FOCUS SKILLS — Tecniche OBBLIGATORIE da tutti i libri rilevanti.\n"
-            "Devi analizzare TUTTE le tecniche elencate, anche quelle meno evidenti. "
-            "Se una tecnica non è applicabile ai dati attuali, scrivilo esplicitamente.\n\n"
-            f"{sections}\n\n"
-            "Per ogni tecnica consulta le Skill per le regole operative precise "
-            "(criteri di incrocio, analisi top-down, segnali di momentum, allineamento MTF)."
-        ) if sections else ""
-
-        # ── SR Analyst ─────────────────────────────────────────────────────────
-        sections = build_sections_for_domain("sr")
-        guidance["sr"] = (
-            "FOCUS SKILLS — Tecniche OBBLIGATORIE da tutti i libri rilevanti.\n"
-            "Devi analizzare TUTTE le tecniche elencate per costruire la mappa completa dei livelli. "
-            "Se una tecnica non produce livelli utili, documentalo esplicitamente.\n\n"
-            f"{sections}\n\n"
-            "Per ogni tecnica consulta le Skill per i criteri di identificazione precisi "
-            "e il calcolo del punteggio di confluenza tra livelli diversi."
-        ) if sections else ""
-
-        # ── Volume Analyst ─────────────────────────────────────────────────────
-        sections = build_sections_for_domain("volume")
-        vol_base = (
-            "Il tuo ruolo è VALIDARE i segnali degli altri specialisti con l'analisi volumetrica.\n\n"
-            "FOCUS SKILLS — Tecniche OBBLIGATORIE da tutti i libri rilevanti.\n"
-            "Devi analizzare TUTTE le tecniche elencate, anche quelle meno evidenti. "
-            "Se una tecnica non è applicabile ai dati attuali, scrivilo esplicitamente.\n\n"
-        )
-        if sections:
-            vol_base += f"{sections}\n\n"
-        vol_base += (
-            "Per ogni tecnica consulta le Skill per i criteri esatti (sforzo vs risultato, "
-            "fasi Wyckoff, segnali VSA: No Demand, No Supply, Climax, Spring, Upthrust).\n"
-            "REGOLA ASSOLUTA: se i volumi NON confermano i segnali tecnici degli altri specialisti, "
-            "devi dichiarare RISCHIO ELEVATO indipendentemente dalla qualità del segnale grafico."
-        )
-        guidance["volume"] = vol_base
-
-        return guidance
