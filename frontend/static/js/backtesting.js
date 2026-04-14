@@ -263,108 +263,84 @@ function buildDynamicAccordions(chosenTools) {
     return;
   }
 
-  ['pattern', 'trend', 'sr', 'oscillator'].forEach(key => {
-    let tools = chosenTools[key] || [];
+  // ── Pattern / Trend / SR: box con strumenti USATI NELL'ANALISI ──────────────
+  ['pattern', 'trend', 'sr'].forEach(key => {
     const body = document.getElementById(`body-${key}`);
     const badge = document.getElementById(`badge-${key}`);
     if (!body) return;
 
-    const isOscGroup = (key === 'oscillator');
-
-    // FILTRO: Per oscillatori verifica computeOscillatorData, altrimenti computeOverlayData
-    tools = tools.filter(tool => {
-      if (isOscGroup) {
-        const d = TradingChart.computeOscillatorData(tool.id, App.currentData);
-        return d && d.length > 0;
-      }
-      const testData = TradingChart.computeOverlayData(tool.id, App.currentData, App.volumeProfileData);
-      return testData && (Array.isArray(testData) ? testData.length > 0 : Object.keys(testData).length > 0);
-    });
-
-    // Mostra badge AI se ci sono strumenti selezionati con successo
-    if (badge) badge.style.display = tools.length ? 'inline' : 'none';
-
-    if (tools.length === 0) {
-      body.innerHTML = `<div style="text-align:center;color:#64748b;font-size:11px;padding:10px 0;">Nessun segnale rilevato per questo gruppo.</div>`;
-      return;
-    }
-
-    // Costruiamo le row degli strumenti scelti (solo quelli con segnale)
-    const toolsHtml = tools.map(tool => `
-      <div class="tool-item-container" id="container-${tool.id}">
-        <div class="tool-item">
-          <label class="tool-checkbox-wrap">
-            <input type="checkbox" class="tool-checkbox"
-                   id="tool-${tool.id}"
-                   data-tool-id="${tool.id}"
-                   data-tool-name="${tool.name}"
-                   data-agent="${key}"
-                   onchange="onToolToggle(this)">
-            <span class="tool-name">${tool.name}</span>
-            <span class="tool-status-icon" title="Segnale rilevato ✅">✅</span>
-          </label>
-          <input type="color"
-                 class="color-picker"
-                 id="color-${tool.id}"
-                 value="${(() => {
-        const c = (tool.color || '').toLowerCase().trim();
-        // Se è vuoto, nullo o qualsiasi variante di nero (#000, #000000, black), usiamo bianco.
-        if (!c || c === '#000000' || c === '#000' || c === 'black') return '#ffffff';
-        return tool.color;
-      })()}"
-                 title="Colore indicatore"
-                 onchange="onColorChange('${tool.id}')">
-        </div>
-        <div style="font-size:9px;color:#64748b;padding:0 8px 4px 24px;line-height:1.2;font-style:italic;">
-          ${tool.desc || ''}
-        </div>
-        ${tool.reason ? `
-          <div style="font-size:10px;color:#94a3b8;padding:2px 8px 6px 8px;line-height:1.35;border-left:2px solid rgba(148,163,184,0.2);margin-left:6px;">
-            <span style="color:var(--primary);opacity:0.7">💡</span> ${tool.reason}
-          </div>
-        ` : ''}
-      </div>
-    `).join('');
-
-    // Sezione "Tecniche dai Libri" — solo per i domini con dati (non per oscillator)
-    // shownIds: overlay AI-selezionati CON dato computabile (già nella sezione grafica)
-    // allAiIds: TUTTI gli overlay AI-selezionati, inclusi quelli senza dato al build-time
-    // (un tool AI-selezionato senza dato al build-time non deve finire in "Consultati")
-    const shownIds = new Set(tools.map(t => t.id));
-    const allAiIds = new Set((chosenTools[key] || []).map(t => t.id));
-    const bookSection = (key !== 'oscillator')
-      ? buildBookTechniquesSection(key, chosenTools.techniques_per_domain, shownIds, allAiIds, App.currentData, App.volumeProfileData)
-      : '';
-
-    body.innerHTML = toolsHtml + bookSection;
+    const appliedTechs = ((chosenTools.applied_techniques_per_domain || {})[key]) || [];
+    body.innerHTML = buildAnalysisSection(key, appliedTechs, App.currentData, App.volumeProfileData);
+    if (badge) badge.style.display = appliedTechs.length ? 'inline' : 'none';
   });
 
-  // Aggiorna il box Volume Analyst (statico, non nel loop) con le sue tecniche dai libri
-  const volBody = document.getElementById('body-volume');
-  if (volBody) {
-    // Rimuovi sezione precedente (per gestire ri-analisi senza duplicati)
-    const prevBooks = volBody.querySelector('.books-section');
-    if (prevBooks) prevBooks.remove();
-
-    // Volume box non ha sezione grafica con overlay già mostrati → Set vuoto per shownIds
-    // Passa comunque gli ID AI-selezionati per il volume per escluderli dai "Consultati"
-    const volAiIds = new Set((chosenTools['volume'] || []).map(t => t.id));
-    const volBookSection = buildBookTechniquesSection('volume', chosenTools.techniques_per_domain, new Set(), volAiIds, App.currentData, App.volumeProfileData);
-    if (volBookSection) {
-      volBody.insertAdjacentHTML('beforeend', volBookSection);
+  // ── Oscillator: suggeriti dal SkillSelector per visualizzazione ──────────────
+  {
+    const body = document.getElementById('body-oscillator');
+    const badge = document.getElementById('badge-oscillator');
+    if (body) {
+      const oscTools = (chosenTools['oscillator'] || []).filter(tool => {
+        const d = TradingChart.computeOscillatorData(tool.id, App.currentData);
+        return d && d.length > 0;
+      });
+      if (badge) badge.style.display = oscTools.length ? 'inline' : 'none';
+      if (oscTools.length === 0) {
+        body.innerHTML = `<div style="text-align:center;color:#64748b;font-size:11px;padding:10px 0;">Nessun oscillatore con segnale nel periodo.</div>`;
+      } else {
+        body.innerHTML = oscTools.map(tool => {
+          const c = (tool.color || '').toLowerCase().trim();
+          const col = (!c || c === '#000000' || c === '#000' || c === 'black') ? '#ffffff' : tool.color;
+          return `
+            <div class="tool-item-container" id="container-${tool.id}">
+              <div class="tool-item">
+                <label class="tool-checkbox-wrap">
+                  <input type="checkbox" class="tool-checkbox"
+                         id="tool-${tool.id}"
+                         data-tool-id="${tool.id}"
+                         data-tool-name="${tool.name}"
+                         data-agent="oscillator"
+                         onchange="onToolToggle(this)">
+                  <span class="tool-name">${tool.name}</span>
+                </label>
+                <input type="color" class="color-picker"
+                       id="color-${tool.id}"
+                       value="${col}"
+                       title="Colore indicatore"
+                       onchange="onColorChange('${tool.id}')">
+              </div>
+              ${tool.reason ? `<div style="font-size:10px;color:#94a3b8;padding:2px 8px 6px 8px;line-height:1.35;border-left:2px solid rgba(148,163,184,0.2);margin-left:6px;"><span style="color:var(--primary);opacity:0.7">💡</span> ${tool.reason}</div>` : ''}
+            </div>`;
+        }).join('');
+      }
     }
   }
 
-  // Riceviamo il totale filtrato per il toast informativo
-  const activePattern = (chosenTools['pattern'] || []).filter(t => TradingChart.computeOverlayData(t.id, App.currentData, App.volumeProfileData)).length;
-  const activeTrend = (chosenTools['trend'] || []).filter(t => TradingChart.computeOverlayData(t.id, App.currentData, App.volumeProfileData)).length;
-  const activeSR = (chosenTools['sr'] || []).filter(t => TradingChart.computeOverlayData(t.id, App.currentData, App.volumeProfileData)).length;
-  const activeOscillator = (chosenTools['oscillator'] || []).filter(t => TradingChart.computeOscillatorData(t.id, App.currentData).length > 0).length;
-  const totalActive = activePattern + activeTrend + activeSR + activeOscillator;
+  // ── Volume: box statico — appende la sezione "usati nell'analisi" ────────────
+  {
+    const volBody = document.getElementById('body-volume');
+    if (volBody) {
+      const prev = volBody.querySelector('.analysis-section');
+      if (prev) prev.remove();
+      const volApplied = ((chosenTools.applied_techniques_per_domain || {})['volume']) || [];
+      if (volApplied.length > 0) {
+        const html = buildAnalysisSection('volume', volApplied, App.currentData, App.volumeProfileData);
+        if (html) {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'analysis-section';
+          wrapper.innerHTML = html;
+          volBody.appendChild(wrapper);
+        }
+      }
+    }
+  }
 
-  showToast(`🔍 Trovati ${totalActive} segnali dagli agenti — selezionali per vederli`, 'info', 6000);
+  // ── Toast riepilogativo ──────────────────────────────────────────────────────
+  const totalApplied = ['pattern', 'trend', 'sr', 'volume'].reduce((acc, d) => {
+    return acc + ((chosenTools.applied_techniques_per_domain || {})[d] || []).length;
+  }, 0);
+  showToast(`📊 ${totalApplied} tecniche usate nell'analisi — attiva quelle grafiche per visualizzarle`, 'info', 6000);
 
-  console.log('[APP] Accordion dinamici ricostruiti con segnali filtrati:', chosenTools);
+  console.log('[APP] Accordion ricostruiti con tecniche effettivamente usate:', chosenTools);
 }
 
 
@@ -389,174 +365,114 @@ function buildDynamicAccordions(chosenTools) {
  * @param {Set}     shownOverlayIds - overlay IDs già mostrati nella sezione grafica
  * @returns {string} HTML della sezione, '' se vuota
  */
-function buildBookTechniquesSection(domain, techPerDomain, shownOverlayIds = new Set(), selectedByAiIds = new Set(), currentData = null, volumeProfileData = null) {
-  const domainData = (techPerDomain || {})[domain];
-  if (!domainData || Object.keys(domainData).length === 0) return '';
+/**
+ * buildAnalysisSection — costruisce le sezioni di un accordion agente
+ * mostrando ESCLUSIVAMENTE gli strumenti usati durante l'analisi AI.
+ *
+ * Sezione 1 — 📊 Strumenti grafici: tecniche con overlay_id e dati computabili
+ *             → checkbox + color picker → attivabili sul grafico
+ * Sezione 2 — 📚 Tecniche teoriche: tecniche senza overlay grafico o senza dati
+ *             → badge informativi (non attivabili)
+ *
+ * @param {string} domain          - 'pattern'|'trend'|'sr'|'volume'
+ * @param {Array}  appliedTechs    - [{name, overlay_id}] da applied_techniques_per_domain
+ * @param {Array}  currentData     - candele correnti (per computeOverlayData)
+ * @param {object} volumeProfileData
+ */
+function buildAnalysisSection(domain, appliedTechs, currentData, volumeProfileData) {
+  if (!appliedTechs || appliedTechs.length === 0) {
+    return `<div style="text-align:center;color:#64748b;font-size:11px;font-style:italic;padding:14px 0;">
+              Avvia il Backtesting AI per vedere gli strumenti utilizzati nell'analisi.
+            </div>`;
+  }
 
-  // Un overlay è "AI-selezionato" se l'AI lo ha scelto con o senza dato computabile al build-time.
-  // Unione di shownOverlayIds (overlay già mostrati nella sezione grafica con segnale)
-  // e selectedByAiIds (tutti gli overlay scelti dall'AI, inclusi quelli senza segnale al momento del build).
-  // Entrambi devono essere esclusi da "Consultati — Nessun Segnale".
-  const aiSelectedIds = new Set([...shownOverlayIds, ...selectedByAiIds]);
+  const visual = [];   // {name, overlayId} — rappresentabili sul grafico
+  const conceptual = [];   // {name}            — puramente teorici
+  const seenIds = new Set();
 
-  // ── Tre bucket strutturali (nessun text-matching) ─────────────────────────
-  // 1. Tecniche senza overlay_id → concettuali, badge azure sempre visibili
-  // 2. Tecniche con overlay_id NON AI-selezionato MA con dati computabili → applicati, checkbox
-  // 3. Tecniche con overlay_id NON AI-selezionato E senza dati → consultati, checkbox grigi
-  const conceptualTechs = [];  // {techName}
-  const appliedVisual = [];  // {techName, overlayId} — con dati
-  const consultedVisual = [];  // {techName, overlayId} — senza dati
+  for (const tech of appliedTechs) {
+    const overlayId = tech.overlay_id || null;
 
-  for (const techs of Object.values(domainData)) {
-    if (!Array.isArray(techs)) continue;
-    for (const tech of techs) {
-      const techName = typeof tech === 'string' ? tech : (tech.name || '');
-      const overlayId = typeof tech === 'object' ? tech.overlay_id : null;
+    if (!overlayId) {
+      conceptual.push({ name: tech.name });
+      continue;
+    }
+    if (seenIds.has(overlayId)) continue;   // deduplication
 
-      if (!overlayId) {
-        // Tecnica puramente concettuale (nessun overlay grafico disponibile)
-        conceptualTechs.push({ techName });
-      } else if (!aiSelectedIds.has(overlayId)) {
-        // Overlay disponibile ma NON selezionato dall'AI → verifichiamo se ha dati
-        const data = TradingChart.computeOverlayData(overlayId, currentData, volumeProfileData);
-        const hasData = data && (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0);
+    // Oscillatori: usa computeOscillatorData; overlay chart: usa computeOverlayData
+    let hasData = false;
+    if (OSCILLATOR_IDS.has(overlayId)) {
+      const d = TradingChart.computeOscillatorData(overlayId, currentData);
+      hasData = d && d.length > 0;
+    } else {
+      const d = TradingChart.computeOverlayData(overlayId, currentData, volumeProfileData);
+      hasData = d && (Array.isArray(d) ? d.length > 0 : Object.keys(d).length > 0);
+    }
 
-        if (hasData) {
-          // Strumento con dati ma non AI-selezionato → applicati (consultato con dato disponibile)
-          appliedVisual.push({ techName, overlayId });
-        } else {
-          // Strumento senza dati → consultati (consultato senza segnale)
-          consultedVisual.push({ techName, overlayId });
-        }
-      }
-      // overlayId AI-selezionato → skip: già nella sezione grafica o scelto dall'AI senza dato
+    if (hasData) {
+      seenIds.add(overlayId);
+      visual.push({ name: tech.name, overlayId });
+    } else {
+      // overlay_id presente ma dati insufficienti nel periodo → badge teorico
+      conceptual.push({ name: tech.name });
     }
   }
 
-  const hasConcepts = conceptualTechs.length > 0;
-  const hasApplied = appliedVisual.length > 0;
-  const hasConsulted = consultedVisual.length > 0;
-  if (!hasConcepts && !hasApplied && !hasConsulted) return '';
-
-  // ── 1. HTML tecniche concettuali (badges azure, sempre visibili) ──────────
-  const conceptualHtml = hasConcepts
-    ? `<div style="padding:4px 8px 6px 8px;border-top:1px solid rgba(116,185,255,0.08);margin-top:3px;">
-        <div style="font-size:9px;color:#64748b;margin-bottom:3px;letter-spacing:0.03em;">Tecniche concettuali analizzate</div>
-        <div style="line-height:1.8;">
-          ${conceptualTechs.map(({ techName }) =>
-      `<span style="display:inline-block;background:rgba(116,185,255,0.08);border:1px solid rgba(116,185,255,0.2);border-radius:3px;padding:1px 6px;margin:2px 2px;font-size:9px;color:#74b9ff;line-height:1.5;">${techName}</span>`
-    ).join('')}
-        </div>
-      </div>`
-    : '';
-
-  // ── 2. HTML "Consultati — Nessun Segnale" (checkbox grigi, collassati) ─────
-  // seenConsultedIds: deduplicazione in caso lo stesso overlayId compaia in più libri
-  const seenConsultedIds = new Set();
-  const consultedCheckboxes = consultedVisual.map(({ techName, overlayId }) => {
-    if (seenConsultedIds.has(overlayId)) return '';
-    seenConsultedIds.add(overlayId);
-    return `
-      <div class="tool-item-container">
+  // ── Sezione 1: Strumenti grafici ──────────────────────────────────────────
+  let visualHtml = '';
+  if (visual.length > 0) {
+    const rows = visual.map(({ name, overlayId }) => `
+      <div class="tool-item-container" id="container-${overlayId}">
         <div class="tool-item">
           <label class="tool-checkbox-wrap">
             <input type="checkbox" class="tool-checkbox"
-                   id="tool-book-${overlayId}"
+                   id="tool-${overlayId}"
                    data-tool-id="${overlayId}"
-                   data-tool-name="${techName}"
+                   data-tool-name="${name}"
                    data-agent="${domain}"
                    onchange="onToolToggle(this)">
-            <span class="tool-name" style="font-size:10px;opacity:0.55;">${techName}</span>
+            <span class="tool-name">${name}</span>
           </label>
-          <input type="color"
-                 class="color-picker"
+          <input type="color" class="color-picker"
                  id="color-${overlayId}"
-                 value="#64748b"
+                 value="#ffffff"
                  title="Colore indicatore"
                  onchange="onColorChange('${overlayId}')">
         </div>
-      </div>`;
-  }).join('');
+      </div>`).join('');
 
-  // ── 2b. HTML "Applicati" (checkbox abilitati, collassati) ──────────────────
-  // seenAppliedIds: deduplicazione in caso lo stesso overlayId compaia in più libri
-  const seenAppliedIds = new Set();
-  const appliedCheckboxes = appliedVisual.map(({ techName, overlayId }) => {
-    if (seenAppliedIds.has(overlayId)) return '';
-    seenAppliedIds.add(overlayId);
-    return `
-      <div class="tool-item-container">
-        <div class="tool-item">
-          <label class="tool-checkbox-wrap">
-            <input type="checkbox" class="tool-checkbox"
-                   id="tool-book-applied-${overlayId}"
-                   data-tool-id="${overlayId}"
-                   data-tool-name="${techName}"
-                   data-agent="${domain}"
-                   onchange="onToolToggle(this)">
-            <span class="tool-name" style="font-size:10px;opacity:1;">${techName}</span>
-            <span style="font-size:9px;opacity:0.6;margin-left:4px;">✅</span>
-          </label>
-          <input type="color"
-                 class="color-picker"
-                 id="color-applied-${overlayId}"
-                 value="#64748b"
-                 title="Colore indicatore"
-                 onchange="onColorChange('${overlayId}')">
+    visualHtml = `
+      <div style="padding:4px 0 2px 0;">
+        <div style="font-size:9px;color:#64748b;padding:3px 8px 5px 8px;
+                    letter-spacing:0.05em;text-transform:uppercase;">
+          📊 Strumenti grafici (${visual.length})
         </div>
+        ${rows}
       </div>`;
-  }).join('');
+  }
 
-  const appliedCount = appliedVisual.length;
-  const appliedBlock = hasApplied ? `
-    <div style="border-top:1px solid rgba(100,116,139,0.12);margin-top:5px;padding-top:3px;">
-      <div onclick="(function(el){const next=el.nextElementSibling;const isOpen=next.style.display!=='none';next.style.display=isOpen?'none':'block';el.querySelector('.ap-chevron').textContent=isOpen?'▶':'▼';})(this)"
-           style="cursor:pointer;font-size:9px;color:#475569;padding:4px 8px;user-select:none;display:flex;align-items:center;gap:3px;">
-        <span style="opacity:0.8;color:#74b9ff;">✅</span>
-        <span>Applicati (${appliedCount})</span>
-        <span class="ap-chevron" style="margin-left:auto;">▶</span>
-      </div>
-      <div style="display:none;padding:2px 4px 4px 4px;">
-        ${appliedCheckboxes}
-      </div>
-    </div>` : '';
+  // ── Sezione 2: Tecniche teoriche ──────────────────────────────────────────
+  let conceptualHtml = '';
+  if (conceptual.length > 0) {
+    const badges = conceptual.map(({ name }) =>
+      `<span style="display:inline-block;background:rgba(116,185,255,0.08);
+               border:1px solid rgba(116,185,255,0.18);border-radius:3px;
+               padding:1px 6px;margin:2px 2px;font-size:9px;color:#74b9ff;
+               line-height:1.5;">${name}</span>`
+    ).join('');
 
-  const consultedCount = consultedVisual.length;
-  const consultedBlock = hasConsulted ? `
-    <div style="border-top:1px solid rgba(100,116,139,0.12);margin-top:5px;padding-top:3px;">
-      <div onclick="(function(el){const next=el.nextElementSibling;const isOpen=next.style.display!=='none';next.style.display=isOpen?'none':'block';el.querySelector('.cv-chevron').textContent=isOpen?'▶':'▼';})(this)"
-           style="cursor:pointer;font-size:9px;color:#475569;padding:4px 8px;user-select:none;display:flex;align-items:center;gap:3px;">
-        <span style="opacity:0.6;">⚪</span>
-        <span>Consultati — Nessun Segnale (${consultedCount})</span>
-        <span class="cv-chevron" style="margin-left:auto;">▶</span>
-      </div>
-      <div style="display:none;padding:2px 4px 4px 4px;">
-        ${consultedCheckboxes}
-      </div>
-    </div>` : '';
+    conceptualHtml = `
+      <div style="border-top:1px solid rgba(100,116,139,0.12);
+                  margin-top:${visual.length ? '4px' : '0'};padding:6px 8px;">
+        <div style="font-size:9px;color:#64748b;margin-bottom:4px;
+                    letter-spacing:0.05em;text-transform:uppercase;">
+          📚 Tecniche teoriche (${conceptual.length})
+        </div>
+        <div style="line-height:1.8;">${badges}</div>
+      </div>`;
+  }
 
-  // ── Header riepilogo ──────────────────────────────────────────────────────
-  const numBooks = Object.keys(domainData).length;
-  const summary = [
-    hasConcepts ? `${conceptualTechs.length} concettuali` : '',
-    hasApplied ? `${appliedCount} applicati` : '',
-    hasConsulted ? `${consultedCount} consultati` : '',
-  ].filter(Boolean).join(' · ') || '—';
-
-  return `
-    <div class="books-section" style="border-top:1px solid rgba(255,255,255,0.06);margin-top:6px;padding-top:2px;">
-      <div onclick="(function(el){const next=el.nextElementSibling;const isOpen=next.style.display!=='none';next.style.display=isOpen?'none':'block';el.querySelector('.books-chevron').textContent=isOpen?'▶':'▼';})(this)"
-           style="cursor:pointer;font-size:10px;color:#94a3b8;padding:5px 8px;user-select:none;display:flex;align-items:center;gap:4px;">
-        <span>📚</span>
-        <span>Libri (${numBooks}): ${summary}</span>
-        <span class="books-chevron" style="margin-left:auto;font-size:9px;">▼</span>
-      </div>
-      <div style="display:block;">
-        ${conceptualHtml}
-        ${appliedBlock}
-        ${consultedBlock}
-      </div>
-    </div>`;
+  return visualHtml + conceptualHtml;
 }
 
 

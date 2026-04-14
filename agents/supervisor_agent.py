@@ -270,13 +270,20 @@ DATI 1D — LUNGO TERMINE ({len(df_1d_all)} giorni — intero periodo selezionat
                 applied_per_domain[_domain] = []
                 continue
             _text_lower = _text.lower()
-            _applied: list[str] = []
+            _applied: list[dict] = []
+            _seen_overlay_ids: set = set()
             for _book_techs in _techniques_pd.get(_domain, {}).values():
                 for _tech in _book_techs:
-                    _name = _tech["name"] if isinstance(_tech, dict) else str(_tech)
-                    _clean = re.sub(r'\s*\([^)]*\)', '', _name.lower()).strip()
+                    _name      = _tech["name"]       if isinstance(_tech, dict) else str(_tech)
+                    _overlay   = _tech.get("overlay_id") if isinstance(_tech, dict) else None
+                    _clean     = re.sub(r'\s*\([^)]*\)', '', _name.lower()).strip()
                     if _clean in _text_lower:
-                        _applied.append(_name)
+                        # Deduplication: stesso overlay_id da libri diversi → teniamo la prima occorrenza
+                        if _overlay and _overlay in _seen_overlay_ids:
+                            continue
+                        if _overlay:
+                            _seen_overlay_ids.add(_overlay)
+                        _applied.append({"name": _name, "overlay_id": _overlay})
             applied_per_domain[_domain] = _applied
 
         chosen_tools["applied_techniques_per_domain"] = applied_per_domain
