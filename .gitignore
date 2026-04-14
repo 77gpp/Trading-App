@@ -36,4 +36,4 @@ storage/
 *.db
 *.csv
 *.xlsx
-
+*trading_system.db
