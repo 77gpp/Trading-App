@@ -130,6 +130,7 @@ AVAILABLE_TOOLS = {
         {"id": "stochastic_k",   "name": "Stochastic %K (14)",        "desc": "Posizione del close nel range degli ultimi 14 periodi. Nison"},
         {"id": "stochastic_d",   "name": "Stochastic %D (3)",         "desc": "SMA(3) di %K, la linea di segnale dello Stochastic"},
         {"id": "williams_r",     "name": "Williams %R (14)",          "desc": "Indicatore momentum inverso: -100=ipervenduto, 0=ipercomprato. Larry Williams"},
+        {"id": "mao",          "name": "MAO (Moving Avg Oscillator)", "desc": "SMA12 - SMA26: momentum oscillator (Nison Cap.14). Positivo = trend rialzista, negativo = ribassista"},
     ]
 }
 
@@ -235,6 +236,7 @@ DEFAULT_COLORS = {
     "stochastic_k":               "#a29bfe",
     "stochastic_d":               "#fd79a8",
     "williams_r":                 "#f9ca24",
+    "mao":                         "#55efc4",
 }
 
 
@@ -590,7 +592,7 @@ Regole per la Parte A:
 - Commodity (Oro, Oil): SMA lente + Fibonacci + Zone S/D + Price Action + pattern candlestick Nison + RSI
 - Crypto: EMA veloci + SuperTrend + Bollinger + Stochastic + pattern Ross Hook
 - Forex: EMA + Ichimoku + Pivot settimanali + MACD
-- Sentiment BEARISH: privilegia resistenze, pattern ribassisti (dark_cloud_cover, shooting_star, 1_2_3_top, outside_day, smash_day), Williams %R
+- Sentiment BEARISH: privilegia resistenze, pattern ribassisti (dark_cloud_cover, shooting_star, 1_2_3_top, outside_day, smash_day), Williams %R, MAO
 - Sentiment BULLISH: privilegia supporti, pattern rialzisti (piercing_line, morning_star, 1_2_3_bottom, oops), RSI, Stochastic
 - GRUPPO OSCILLATOR: seleziona TUTTI gli oscillatori rilevanti per il contesto — nessun limite massimo. Includili tutti se utili a confermare i segnali
 - PATTERN JOE ROSS: usa pattern_1_2_3_top/bottom, pattern_ross_hook, pattern_ledge per asset con trend chiaro
@@ -619,7 +621,8 @@ OUTPUT — Rispondi SOLO con JSON valido (nessun testo fuori, niente markdown):
     {{"id": "macd_signal",   "name": "MACD Signal",        "reason": "...", "color": "#ff9f43"}},
     {{"id": "stochastic_k",  "name": "Stochastic %K",      "reason": "...", "color": "#a29bfe"}},
     {{"id": "stochastic_d",  "name": "Stochastic %D",      "reason": "...", "color": "#fd79a8"}},
-    {{"id": "williams_r",    "name": "Williams %R",        "reason": "...", "color": "#f9ca24"}}
+    {{"id": "williams_r",    "name": "Williams %R",        "reason": "...", "color": "#f9ca24"}},
+    {{"id": "mao",           "name": "MAO",                 "reason": "...", "color": "#55efc4"}}
   ],
   "summary": "Breve frase riassuntiva della scelta strategica per l'asset"
 }}"""
@@ -677,6 +680,13 @@ OUTPUT — Rispondi SOLO con JSON valido (nessun testo fuori, niente markdown):
                 pass  # json_repair opzionale, si prosegue col parsing normale
 
             # 4b. Parsing JSON
+            # JSON repair: gestisce risposte troncate (output lungo)
+            try:
+                from json_repair import repair_json
+                raw = repair_json(raw)
+            except ImportError:
+                pass  # json_repair opzionale
+
             chosen = json.loads(raw)
 
             # Validazione: assicuriamoci che gli ID esistano nel catalogo

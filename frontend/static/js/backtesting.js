@@ -594,7 +594,7 @@ function toggleAccordion(agentKey) {
 // TOGGLE OVERLAY INDICATORE
 // -------------------------------------------------------
 // Set degli ID appartenenti al gruppo oscillator (sincronizzato con AVAILABLE_TOOLS)
-const OSCILLATOR_IDS = new Set(['rsi', 'macd_line', 'macd_signal', 'stochastic_k', 'stochastic_d', 'williams_r']);
+const OSCILLATOR_IDS = new Set(['rsi', 'macd_line', 'macd_signal', 'stochastic_k', 'stochastic_d', 'williams_r', 'mao']);
 
 function onToolToggle(checkbox, options = {}) {
   const toolId = checkbox.dataset.toolId;
