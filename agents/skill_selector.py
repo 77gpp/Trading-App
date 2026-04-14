@@ -592,7 +592,7 @@ Regole per la Parte A:
 - Forex: EMA + Ichimoku + Pivot settimanali + MACD
 - Sentiment BEARISH: privilegia resistenze, pattern ribassisti (dark_cloud_cover, shooting_star, 1_2_3_top, outside_day, smash_day), Williams %R
 - Sentiment BULLISH: privilegia supporti, pattern rialzisti (piercing_line, morning_star, 1_2_3_bottom, oops), RSI, Stochastic
-- GRUPPO OSCILLATOR: seleziona 1-3 oscillatori rilevanti per confermare i segnali delle altre categorie
+- GRUPPO OSCILLATOR: seleziona TUTTI gli oscillatori rilevanti per il contesto — non c'è un limite massimo. Usa quanti ne servono per confermare i segnali delle altre categorie
 - PATTERN JOE ROSS: usa pattern_1_2_3_top/bottom, pattern_ross_hook, pattern_ledge per asset con trend chiaro
 - PATTERN LARRY WILLIAMS: usa pattern_oops e pattern_volatility_breakout in mercati volatili con gap frequenti
 
@@ -614,8 +614,12 @@ OUTPUT — Rispondi SOLO con JSON valido (nessun testo fuori, niente markdown):
     {{"id": "supply_zone", "name": "Supply Zone", "reason": "...", "color": "#ff6b81"}}
   ],
   "oscillator": [
-    {{"id": "rsi", "name": "RSI 14", "reason": "...", "color": "#74b9ff"}},
-    {{"id": "macd_line", "name": "MACD Line", "reason": "...", "color": "#00d4aa"}}
+    {{"id": "rsi",           "name": "RSI 14",              "reason": "...", "color": "#74b9ff"}},
+    {{"id": "macd_line",     "name": "MACD Line",           "reason": "...", "color": "#00d4aa"}},
+    {{"id": "macd_signal",   "name": "MACD Signal",         "reason": "...", "color": "#ff9f43"}},
+    {{"id": "stochastic_k",  "name": "Stochastic %K",       "reason": "...", "color": "#a29bfe"}},
+    {{"id": "stochastic_d",  "name": "Stochastic %D",       "reason": "...", "color": "#fd79a8"}},
+    {{"id": "williams_r",    "name": "Williams %R",         "reason": "...", "color": "#f9ca24"}}
   ],
   "summary": "Breve frase riassuntiva della scelta strategica per l'asset"
 }}"""
