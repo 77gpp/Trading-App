@@ -71,8 +71,6 @@ AVAILABLE_TOOLS = {
         {"id": "pattern_outside_day",        "name": "Outside Day",                    "desc": "Barra che ingloba completamente la precedente (high>prev high AND low<prev low)"},
         {"id": "pattern_volatility_breakout","name": "Volatility Breakout (Williams)", "desc": "Breakout basato su ATR × fattore, segnale di momentum istituzionale"},
         {"id": "pattern_short_term_pivot",   "name": "Short-Term Pivot (Williams)",    "desc": "Pivot a 5 barre (2 barre più basse/alte a destra e sinistra), swing point Williams"},
-        # --- Volume Analysis ---
-        {"id": "volume_vsa",                 "name": "VSA Volume Analysis",            "desc": "Colorazione barre volume per deviazione dalla media: rosso=estremo, arancio=alto, blu=sopra media"},
     ],
     "trend": [
         # --- Medie Mobili Semplici ---
@@ -273,14 +271,16 @@ BOOK_DOMAIN_MAP: dict[str, list[str]] = {
     "Steve Nison — Japanese Candlestick Charting": ["pattern", "oscillator"],
 
     # ── Thomas Bulkowski — Encyclopedia of Chart Patterns ───────────
-    # Parte 1-3:  ~70 pattern grafici con statistiche di breakout → pattern
-    # Parte 4:    target misurati, failure rates, livelli S/R post-breakout → sr
-    "Thomas Bulkowski — Encyclopedia of Chart Patterns": ["pattern", "sr"],
+    # Parte 1-3:  ~74 pattern grafici con statistiche di breakout e target → pattern
+    # Appendici:  conferme con RSI, MACD, volume → oscillator
+    # (Target misurati sono derivati dal pattern, non S/R indipendente)
+    "Thomas Bulkowski — Encyclopedia of Chart Patterns": ["pattern", "oscillator"],
 
     # ── Joe Ross — Day Trading (La Legge dei Grafici — TLOC) ────────
-    # Parte 1-2:  1-2-3 Top/Bottom, Ross Hook, Ledge, TTE → pattern
-    # Parte 3:    Trading Range, congestioni, livelli di entrata TLOC → sr
-    "Joe Ross — Day Trading": ["pattern", "sr"],
+    # Parte 1-4:  1-2-3 Top/Bottom, Ross Hook, Ledge, Trading Range, entrate → pattern
+    # Appendici:  Conferme con oscillatori e momentum → oscillator
+    # (Livelli di entrata TLOC sono derivati dal pattern, non S/R indipendente)
+    "Joe Ross — Day Trading": ["pattern", "oscillator"],
 
     # ── Larry Williams — Long-Term Secrets to Short-Term Trading ────
     # Cap. 1-5:   Swing highs/lows come S/R operativi, livelli psicologici → sr
@@ -299,7 +299,8 @@ BOOK_DOMAIN_MAP: dict[str, list[str]] = {
     # ── Brian Shannon — Technical Analysis Using Multiple Timeframes ─
     # Cap. 1-4:   Allineamento del trend su più timeframe → trend
     # Cap. 5-7:   Identificazione VWAP, S/R e livelli chiave MTF → sr
-    "Brian Shannon — Technical Analysis Using Multiple Timeframes": ["trend", "sr"],
+    # Cap. 8:     Uso di RSI e MACD per conferma MTF → oscillator
+    "Brian Shannon — Technical Analysis Using Multiple Timeframes": ["trend", "sr", "oscillator"],
 }
 
 # ------------------------------------------------------------------
@@ -562,12 +563,31 @@ class SkillSelector:
                 current_body_lines: list[str] = []
 
                 def _flush_technique():
-                    """Salva la tecnica corrente nel catalogo."""
+                    """
+                    Salva la tecnica corrente nel catalogo.
+
+                    Campi prodotti:
+                    - body: testo completo della tecnica (per frontend/tooltip)
+                    - desc: solo la riga **Descrizione:** (per skills_guidance agli agenti,
+                            compatta e adatta ai limiti di contesto del modello)
+                    """
                     if current_name:
                         body = " ".join(
                             l.strip() for l in current_body_lines if l.strip()
-                        )[:400].strip()
-                        techniques.append({"name": current_name, "body": body})
+                        ).strip()
+                        # Estrai solo la sezione **Descrizione:** per la guidance compatta.
+                        # Cerca il valore dopo "**Descrizione:**" fino al prossimo "**" o fine.
+                        desc_match = re.search(
+                            r'\*\*Descrizione:\*\*\s*(.+?)(?=\*\*[A-Z]|$)',
+                            body,
+                            re.DOTALL | re.IGNORECASE,
+                        )
+                        if desc_match:
+                            desc = re.sub(r'\s+', ' ', desc_match.group(1)).strip()
+                        else:
+                            # Fallback: prime 300 char del body se Descrizione non trovata
+                            desc = body[:300].strip()
+                        techniques.append({"name": current_name, "body": body, "desc": desc})
 
                 for line in lines:
                     stripped = line.strip()
@@ -642,10 +662,22 @@ class SkillSelector:
 
         Questo metodo non modifica nulla — è puro audit con logging.
         Da chiamare dopo _load_technique_catalog().
+
+        Verifica inoltre la coerenza semantica tra il nome/desc della tecnica
+        e il dominio assegnato (pattern/trend/sr/oscillator).
         """
         all_domains = ("pattern", "trend", "sr", "oscillator")
         uncovered_books:      list[str] = []
         uncovered_techniques: list[tuple[str, str]] = []  # (book, tech_name)
+        incoherent_assignments: list[tuple[str, str, str]] = []  # (book, domain, tech_name)
+
+        # Regex keywords per validare coerenza
+        domain_keywords = {
+            "pattern": r"(pattern|candela|candle|engulfing|harami|doji|hammer|star|formation|formazione|breakout|chart|head.*shoulder|testa.*spalle|double|triangle|wedge|flag|1-2-3|ross|inside|pin|dark cloud|piercing|shooting|morning|evening|tweezer|counterattack|gap|oops|smash|outside|volatility)",
+            "trend": r"(moving.*average|media.*mobile|sma|ema|trend|momentum|bollinger|band|channel|keltner|ichimoku|supertrend|atr|slope|direction|uptrend|downtrend|rialzo|ribasso|equilibrium|convergence|divergence|incrocio|multiframe|mtf|alignment|tenkan|kijun|senkou)",
+            "sr": r"(support|resistance|supporto|resistenza|livello|pivot|fibonacci|fib|psych|psychological|zone|area|supply|demand|accumulation|distribution|vwap|donchian|swing|high.*low|max.*min|confluence|confluenza|target|entry|entrata)",
+            "oscillator": r"(rsi|macd|stochastic|williams|%r|momentum|oscill|divergence|convergence|ipercomprato|ipervenduto|overbought|oversold|signal|segnale|histogram|confirmation|conferma|volume|mao|crossover)",
+        }
 
         for book_label, techniques in catalog.items():
             domains_for_book = BOOK_DOMAIN_MAP.get(book_label, [])
@@ -665,6 +697,13 @@ class SkillSelector:
                         f"in BOOK_DOMAIN_MAP per '{book_label}'"
                     )
 
+                # Verifica coerenza semantica per ogni tecnica del dominio
+                for tech in techniques:
+                    combined_text = f"{tech['name']} {tech.get('desc', '')}".lower()
+                    keywords = domain_keywords.get(domain, [])
+                    if keywords and not re.search(keywords, combined_text):
+                        incoherent_assignments.append((book_label, domain, tech["name"]))
+
         if uncovered_books:
             logger.warning(
                 f"[SKILL SELECTOR] LIBRI SENZA AGENTE: {uncovered_books}. "
@@ -677,8 +716,16 @@ class SkillSelector:
                 + "; ".join(f"[{b}] {n}" for b, n in uncovered_techniques[:10])
                 + (" ..." if len(uncovered_techniques) > 10 else "")
             )
-        if not uncovered_books and not uncovered_techniques:
-            logger.debug("[SKILL SELECTOR] Coverage check OK — tutte le tecniche assegnate.")
+        if incoherent_assignments:
+            logger.warning(
+                f"[SKILL SELECTOR] {len(incoherent_assignments)} ASSEGNAMENTI POTENZIALMENTE INCOERENTI "
+                f"(nome/desc non matcha dominio). Dettaglio: "
+                + "; ".join(f"[{d}] {n}" for b, d, n in incoherent_assignments[:5])
+                + (" ..." if len(incoherent_assignments) > 5 else "")
+            )
+
+        if not uncovered_books and not uncovered_techniques and not incoherent_assignments:
+            logger.debug("[SKILL SELECTOR] Coverage check OK — tutte le tecniche assegnate e coerenti.")
 
     # ------------------------------------------------------------------
     # SKILLS GUIDANCE — Istruzioni deterministiche per ogni specialista
@@ -704,8 +751,6 @@ class SkillSelector:
         Returns:
             dict {domain: str} con domini: pattern, trend, sr, oscillator
         """
-        BODY_TRUNCATE = 400  # char max per il body di ogni tecnica nel prompt
-
         def _asset_hint(domain: str) -> str:
             """Aggiunge una riga di enfasi contestuale per asset_type."""
             if not asset_type:
@@ -741,11 +786,17 @@ class SkillSelector:
         def _build_sections(domain: str) -> str:
             """
             Costruisce il blocco testuale con tutte le tecniche di tutti
-            i libri assegnati al dominio. Formato:
+            i libri assegnati al dominio.
 
-            [Nome Libro]:
-              1. NomeTecnica — body della tecnica (troncato a 400 char)
-              2. ...
+            Usa il campo `desc` (solo la riga Descrizione) per mantenere
+            la guidance compatta e compatibile con i limiti di contesto del
+            modello. Il body completo è disponibile in techniques_per_domain
+            per i tooltip del frontend.
+
+            Formato:
+              [Nome Libro]:
+                1. NomeTecnica — descrizione operativa
+                2. ...
             """
             sections: list[str] = []
             for book_label, book_techs in catalog.items():
@@ -754,10 +805,9 @@ class SkillSelector:
                 lines: list[str] = []
                 for i, tech in enumerate(book_techs, start=1):
                     name = tech["name"]
-                    body = tech.get("body", "").strip()
-                    if body:
-                        body_short = body[:BODY_TRUNCATE]
-                        lines.append(f"  {i}. {name} — {body_short}")
+                    desc = tech.get("desc", tech.get("body", "")[:300]).strip()
+                    if desc:
+                        lines.append(f"  {i}. {name} — {desc}")
                     else:
                         lines.append(f"  {i}. {name}")
                 if lines:
@@ -913,20 +963,20 @@ Regole di selezione:
 - Il campo "reason" deve essere breve: max 10 parole
 - Il campo "color" deve essere un colore HEX chiaro e ben visibile su sfondo SCURO. Non usare mai nero (#000, #000000, "black") né colori scuri. Usa colori come "#f9ca24" (giallo), "#74b9ff" (blu), "#ff9f43" (arancio), "#00d4aa" (verde acqua), "#ff6b81" (rosa), "#a29bfe" (viola).
 
-Regole contestuali per asset type "{asset_type}":
-- commodity: SMA lente (50/200) + Fibonacci + Zone S/D + Nison + RSI + MACD
-- crypto: EMA veloci (9/20/50) + SuperTrend + Bollinger + Stochastic + Ross Hook
-- forex: EMA + Ichimoku + Pivot settimanali + MACD
-- equity: SMA 50/200 + H&S + Double Top + RSI + Fibonacci
+OBIETTIVO: seleziona TUTTI gli strumenti necessari per un'analisi completa che copra ogni punto:
+- PATTERN: tutti i pattern candlestick e chartistici rilevabili nel contesto corrente
+- TREND: tutti gli indicatori di trend e medie mobili utili per identificare direzione e forza
+- SR: tutti i livelli di supporto/resistenza, Fibonacci, pivot e zone S/D significativi
+- OSCILLATOR: TUTTI gli oscillatori del catalogo che forniscono conferma o divergenza
 
-Regole contestuali per sentiment:
-- BEARISH: privilegia resistenze, pattern ribassisti (dark_cloud_cover, shooting_star, 1_2_3_top, outside_day, smash_day), Williams %R, MAO
-- BULLISH: privilegia supporti, pattern rialzisti (piercing_line, morning_star, 1_2_3_bottom, oops), RSI, Stochastic
+Non c'è un limite massimo al numero di strumenti — seleziona tutto ciò che contribuisce all'analisi.
 
-Regole speciali:
-- GRUPPO OSCILLATOR: seleziona TUTTI gli oscillatori rilevanti — nessun limite massimo
-- PATTERN JOE ROSS: usa 1_2_3_top/bottom, ross_hook, ledge in trend chiari
-- PATTERN LARRY WILLIAMS: usa oops e volatility_breakout in mercati volatili con gap
+Adatta la selezione al contesto:
+- asset type "{asset_type}": scegli gli strumenti più rilevanti per questo tipo di mercato
+- BEARISH: includi resistenze, pattern ribassisti (dark_cloud_cover, shooting_star, 1_2_3_top, outside_day, smash_day), Williams %R, MAO
+- BULLISH: includi supporti, pattern rialzisti (piercing_line, morning_star, 1_2_3_bottom, oops), RSI, Stochastic
+- PATTERN JOE ROSS: includi 1_2_3_top/bottom, ross_hook, ledge in trend chiari
+- PATTERN LARRY WILLIAMS: includi oops e volatility_breakout in mercati volatili con gap
 
 Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
 {{

@@ -11,7 +11,7 @@ import Calibrazione
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from agents.agno_macro_expert import AgnoMacroExpert
 from agents.context_expander_agent import ContextExpanderAgent
-from agents.skill_selector import SkillSelector
+from agents.skill_selector import SkillSelector, TECHNIQUE_OVERLAY_MAP, AVAILABLE_TOOLS
 from agents.specialists.pattern_agent import PatternAgent
 from agents.specialists.trend_agent import TrendAgent
 from agents.specialists.sr_agent import SRAgent
@@ -254,36 +254,83 @@ DATI 1D — LUNGO TERMINE ({len(df_1d_all)} giorni — intero periodo selezionat
                 logger.error(f"[SUPERVISORE] Errore {nome}: {e}")
                 results_tech[nome] = f"❌ Errore durante l'analisi: {e}"
 
-        # ── Classificazione tecniche applicate vs. consultate ─────────────
+        # ── Classificazione tecniche applicate vs. consultate ──────────────────
+        # Tre livelli di rilevamento per massimizzare gli strumenti visibili:
+        #   L1 (garanzia) — strumenti AI-selezionati (chosen_tools[domain])
+        #                   Sempre presenti: il SkillSelector li ha già validati.
+        #   L2 (keyword)  — TECHNIQUE_OVERLAY_MAP scansiona l'output dell'agente
+        #                   Aggiunge strumenti menzionati nel testo ma non in L1.
+        #   L3 (badge)    — nomi SKILL.md senza overlay_id rilevati nel testo
+        #                   Resi come badge informativi (non attivabili sul grafico).
         _domain_to_specialist = {
             "pattern": "Pattern Analyst",
             "trend":   "Trend Analyst",
             "sr":      "SR Analyst",
             "volume":  "Volume Analyst",
         }
+        # Overlay IDs validi per dominio — usati in L2 per non mischiare strumenti
+        _domain_valid_ids: dict[str, set] = {
+            d: {t["id"] for t in tools}
+            for d, tools in AVAILABLE_TOOLS.items()
+        }
+        # Il Volume Analyst usa gli strumenti dell'oscillator + volume_vsa
+        _domain_valid_ids["volume"] = (
+            _domain_valid_ids.get("oscillator", set()) | {"volume_vsa"}
+        )
+
         _techniques_pd = chosen_tools.get("techniques_per_domain", {})
         applied_per_domain: dict = {}
 
+        # Parole generiche da non usare come unico termine di ricerca in L3
+        _generic_skip = {
+            "trend", "volume", "pattern", "price", "market", "trading",
+            "candle", "candela", "chart", "grafico", "analisi", "scale",
+            "scala", "open", "close", "high", "low",
+        }
+
         for _domain, _specialist in _domain_to_specialist.items():
-            _text = results_tech.get(_specialist, "")
-            if not isinstance(_text, str) or not _text:
-                applied_per_domain[_domain] = []
-                continue
-            _text_lower = _text.lower()
+            _text    = results_tech.get(_specialist, "")
             _applied: list[dict] = []
-            _seen_overlay_ids: set = set()
-            for _book_techs in _techniques_pd.get(_domain, {}).values():
-                for _tech in _book_techs:
-                    _name      = _tech["name"]       if isinstance(_tech, dict) else str(_tech)
-                    _overlay   = _tech.get("overlay_id") if isinstance(_tech, dict) else None
-                    _clean     = re.sub(r'\s*\([^)]*\)', '', _name.lower()).strip()
-                    if _clean in _text_lower:
-                        # Deduplication: stesso overlay_id da libri diversi → teniamo la prima occorrenza
-                        if _overlay and _overlay in _seen_overlay_ids:
-                            continue
+            _seen_ids: set       = set()
+
+            # ── L1: Strumenti AI-selezionati ──────────────────────────────────
+            # Per il Volume Analyst usiamo la selezione "oscillator" del SkillSelector
+            _llm_key = "oscillator" if _domain == "volume" else _domain
+            for _tool in chosen_tools.get(_llm_key, []):
+                _oid  = _tool.get("id")
+                _name = _tool.get("name", _oid or "")
+                if _oid and _oid not in _seen_ids:
+                    _seen_ids.add(_oid)
+                    _applied.append({"name": _name, "overlay_id": _oid})
+
+            if isinstance(_text, str) and _text:
+                _text_lower = _text.lower()
+                _valid_ids  = _domain_valid_ids.get(_domain, set())
+
+                # ── L2: Keyword scan TECHNIQUE_OVERLAY_MAP ────────────────────
+                # Rileva strumenti del dominio menzionati nel testo ma non già in L1
+                for _kw, _oid in TECHNIQUE_OVERLAY_MAP:
+                    if _oid in _seen_ids or _oid not in _valid_ids:
+                        continue
+                    if re.search(r'\b' + re.escape(_kw) + r'\b', _text_lower):
+                        _seen_ids.add(_oid)
+                        _applied.append({"name": _kw.title(), "overlay_id": _oid})
+
+                # ── L3: Nomi SKILL.md → badge concettuali (solo senza overlay) ─
+                for _book_techs in _techniques_pd.get(_domain, {}).values():
+                    for _tech in _book_techs:
+                        _tname   = _tech["name"] if isinstance(_tech, dict) else str(_tech)
+                        _overlay = _tech.get("overlay_id") if isinstance(_tech, dict) else None
                         if _overlay:
-                            _seen_overlay_ids.add(_overlay)
-                        _applied.append({"name": _name, "overlay_id": _overlay})
+                            continue  # Già gestito in L1/L2
+                        _clean = re.sub(r'\s*\([^)]*\)', '', _tname.lower()).strip()
+                        _ms    = _clean if len(_clean.split()) >= 2 else _tname.lower()
+                        # Salta termini troppo generici (1 sola parola comune)
+                        if len(_ms.split()) == 1 and _ms in _generic_skip:
+                            continue
+                        if re.search(r'\b' + re.escape(_ms) + r'\b', _text_lower):
+                            _applied.append({"name": _tname, "overlay_id": None})
+
             applied_per_domain[_domain] = _applied
 
         chosen_tools["applied_techniques_per_domain"] = applied_per_domain
