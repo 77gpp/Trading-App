@@ -62,8 +62,12 @@ class SRAgent:
                 "Il tuo focus è esclusivamente la MAPPA DEI LIVELLI DI PREZZO."
             ),
             instructions=[
-                "Inizia SEMPRE con la sezione '🛠️ STRUMENTI UTILIZZATI' elencando "
-                "le tecniche applicate con il libro di provenienza.",
+                "Inizia SEMPRE la tua risposta con la sezione '## 🛠️ STRUMENTI UTILIZZATI'. "
+                "Per OGNI tecnica della FOCUS SKILLS valutata, produci UNA RIGA nel formato ESATTO: "
+                "'✅ NomeTecnica — breve nota operativa' se la tecnica è presente nei dati correnti, "
+                "'❌ NomeTecnica — non rilevato' se la tecnica non è applicabile ai dati correnti. "
+                "Elenca almeno le tecniche principali di ogni libro della FOCUS SKILLS. "
+                "Poi prosegui con l'analisi dettagliata.",
                 "VINCOLO FONDAMENTALE: se la sezione 'FOCUS SKILLS' è presente nel prompt, "
                 "devi analizzare TUTTE le tecniche elencate in essa (sono obbligatorie, non opzionali). "
                 "Dopo averle analizzate tutte, puoi integrare con altri metodi di identificazione S/R "
@@ -117,7 +121,8 @@ SENTIMENT MACRO DA RISPETTARE (fornito dall'agente Macro Strategist):
 {focus_section}
 Esegui la mappatura completa di tutti i livelli di prezzo chiave.
 Identifica zone di confluenza, Fibonacci, Supply & Demand Zones, Pivot Points e VWAP.
-Inizia con la sezione '🛠️ STRUMENTI UTILIZZATI' e usa tabelle Markdown per i livelli.
+PRIMA SEZIONE OBBLIGATORIA: '## 🛠️ STRUMENTI UTILIZZATI' con ogni tecnica su riga separata nel formato: ✅ NomeTecnica — nota / ❌ NomeTecnica — non rilevato
+Poi usa tabelle Markdown per i livelli S/R.
 """
         try:
             response = self.agent.run(prompt)

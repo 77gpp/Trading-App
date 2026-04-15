@@ -58,8 +58,12 @@ class PatternAgent:
                 "con alta probabilità statistica di sviluppi specifici."
             ),
             instructions=[
-                "Inizia SEMPRE la tua risposta con la sezione '🛠️ STRUMENTI UTILIZZATI' "
-                "elencando le tecniche specifiche che hai applicato con il libro di provenienza.",
+                "Inizia SEMPRE la tua risposta con la sezione '## 🛠️ STRUMENTI UTILIZZATI'. "
+                "Per OGNI tecnica della FOCUS SKILLS valutata, produci UNA RIGA nel formato ESATTO: "
+                "'✅ NomeTecnica — breve nota operativa' se la tecnica è presente nei dati correnti, "
+                "'❌ NomeTecnica — non rilevato' se la tecnica non è applicabile ai dati correnti. "
+                "Elenca almeno le tecniche principali di ogni libro della FOCUS SKILLS. "
+                "Poi prosegui con l'analisi dettagliata.",
                 "VINCOLO FONDAMENTALE: se la sezione 'FOCUS SKILLS' è presente nel prompt, "
                 "devi analizzare TUTTE le tecniche elencate in essa (sono obbligatorie, non opzionali). "
                 "Dopo averle analizzate tutte, puoi integrare con altri pattern e tecniche "
@@ -109,7 +113,7 @@ SENTIMENT MACRO DA RISPETTARE (fornito dall'agente Macro Strategist):
 {macro_sentiment}
 {focus_section}
 Esegui un'analisi completa dei pattern candlestick e delle formazioni grafiche.
-Inizia con la sezione '🛠️ STRUMENTI UTILIZZATI' e procedi come da istruzioni.
+PRIMA SEZIONE OBBLIGATORIA: '## 🛠️ STRUMENTI UTILIZZATI' con ogni tecnica su riga separata nel formato: ✅ NomeTecnica — nota / ❌ NomeTecnica — non rilevato
 """
         try:
             response = self.agent.run(prompt)

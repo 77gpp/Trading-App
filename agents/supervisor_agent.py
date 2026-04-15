@@ -307,8 +307,35 @@ DATI 1D — LUNGO TERMINE ({len(df_1d_all)} giorni — intero periodo selezionat
                 _text_lower = _text.lower()
                 _valid_ids  = _domain_valid_ids.get(_domain, set())
 
+                # ── L1.5: Scan sezione strutturata '🛠️ STRUMENTI UTILIZZATI' ──
+                # L'agente produce ora righe ✅/❌ con nomi esatti delle tecniche.
+                # Estrae le tecniche RILEVATE (✅) e le mappa via TECHNIQUE_OVERLAY_MAP
+                # prima del keyword scan generico L2, per massima precisione sui nomi.
+                _sect_match = re.search(
+                    r'STRUMENTI UTILIZZATI[^\n]*\n([\s\S]*?)(?=\n##\s|\Z)',
+                    _text
+                )
+                if _sect_match:
+                    for _line in _sect_match.group(1).split('\n'):
+                        _ls = _line.strip()
+                        if '✅' not in _ls:
+                            continue
+                        _tm = re.match(r'.*✅\s*(.+?)(?:\s*[—–\-]|$)', _ls)
+                        if not _tm:
+                            continue
+                        _tech_name = _tm.group(1).strip()
+                        if not _tech_name:
+                            continue
+                        for _kw, _oid in TECHNIQUE_OVERLAY_MAP:
+                            if _oid in _seen_ids or _oid not in _valid_ids:
+                                continue
+                            if re.search(r'\b' + re.escape(_kw) + r'\b', _tech_name.lower()):
+                                _seen_ids.add(_oid)
+                                _applied.append({"name": _tech_name, "overlay_id": _oid})
+                                break
+
                 # ── L2: Keyword scan TECHNIQUE_OVERLAY_MAP ────────────────────
-                # Rileva strumenti del dominio menzionati nel testo ma non già in L1
+                # Rileva strumenti del dominio menzionati nel testo ma non già in L1/L1.5
                 for _kw, _oid in TECHNIQUE_OVERLAY_MAP:
                     if _oid in _seen_ids or _oid not in _valid_ids:
                         continue

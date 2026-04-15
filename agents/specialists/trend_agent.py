@@ -60,8 +60,12 @@ class TrendAgent:
                 "Il tuo focus è esclusivamente la DIREZIONE e la FORZA del trend."
             ),
             instructions=[
-                "Inizia SEMPRE con la sezione '🛠️ STRUMENTI UTILIZZATI' elencando "
-                "le tecniche applicate con il libro di provenienza.",
+                "Inizia SEMPRE la tua risposta con la sezione '## 🛠️ STRUMENTI UTILIZZATI'. "
+                "Per OGNI tecnica della FOCUS SKILLS valutata, produci UNA RIGA nel formato ESATTO: "
+                "'✅ NomeTecnica — breve nota operativa' se la tecnica è presente nei dati correnti, "
+                "'❌ NomeTecnica — non rilevato' se la tecnica non è applicabile ai dati correnti. "
+                "Elenca almeno le tecniche principali di ogni libro della FOCUS SKILLS. "
+                "Poi prosegui con l'analisi dettagliata.",
                 "VINCOLO FONDAMENTALE: se la sezione 'FOCUS SKILLS' è presente nel prompt, "
                 "devi analizzare TUTTE le tecniche elencate in essa (sono obbligatorie, non opzionali). "
                 "Dopo averle analizzate tutte, puoi integrare con altri indicatori e metodi "
@@ -110,7 +114,7 @@ SENTIMENT MACRO DA RISPETTARE (fornito dall'agente Macro Strategist):
 {focus_section}
 Esegui un'analisi completa del trend e del momentum.
 Segui la procedura top-down (Weekly → Daily → 4H → 1H) come da Skill.
-Inizia con la sezione '🛠️ STRUMENTI UTILIZZATI'.
+PRIMA SEZIONE OBBLIGATORIA: '## 🛠️ STRUMENTI UTILIZZATI' con ogni tecnica su riga separata nel formato: ✅ NomeTecnica — nota / ❌ NomeTecnica — non rilevato
 """
         try:
             response = self.agent.run(prompt)
