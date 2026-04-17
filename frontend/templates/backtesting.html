@@ -225,65 +225,31 @@
         <!-- Modelli per Agente (Dropdown interattivi) -->
         <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin:10px 0 6px">LLM per Agente</div>
 
-        <!-- Macro Expert -->
-        <div class="calib-row" style="display:flex;gap:8px;align-items:center;">
-          <span class="calib-label" style="min-width:120px;">📊 Macro Expert</span>
-          <select id="calib-agent-provider-macro_expert" class="calib-input" style="flex:1;font-size:10px;" onchange="updateAgentModels('macro_expert')">
-            <option value="gemma4">Gemma 4</option>
-            <option value="qwen">Qwen</option>
-            <option value="gemini">Gemini</option>
-          </select>
-          <select id="calib-agent-model-macro_expert" class="calib-input" style="flex:1.5;font-size:10px;">
-          </select>
-        </div>
-
-        <!-- Tech Orchestrator -->
-        <div class="calib-row" style="display:flex;gap:8px;align-items:center;">
-          <span class="calib-label" style="min-width:120px;">🔄 Orchestrator</span>
-          <select id="calib-agent-provider-tech_orchestrator" class="calib-input" style="flex:1;font-size:10px;" onchange="updateAgentModels('tech_orchestrator')">
-            <option value="gemma4">Gemma 4</option>
-            <option value="qwen">Qwen</option>
-            <option value="gemini">Gemini</option>
-          </select>
-          <select id="calib-agent-model-tech_orchestrator" class="calib-input" style="flex:1.5;font-size:10px;">
-          </select>
-        </div>
-
-        <!-- Tech Specialists -->
-        <div class="calib-row" style="display:flex;gap:8px;align-items:center;">
-          <span class="calib-label" style="min-width:120px;">🧠 Specialists</span>
-          <select id="calib-agent-provider-tech_specialists" class="calib-input" style="flex:1;font-size:10px;" onchange="updateAgentModels('tech_specialists')">
-            <option value="gemma4">Gemma 4</option>
-            <option value="qwen">Qwen</option>
-            <option value="gemini">Gemini</option>
-          </select>
-          <select id="calib-agent-model-tech_specialists" class="calib-input" style="flex:1.5;font-size:10px;">
-          </select>
-        </div>
-
-        <!-- Skill Selector -->
-        <div class="calib-row" style="display:flex;gap:8px;align-items:center;">
-          <span class="calib-label" style="min-width:120px;">⚙️ Skill Selector</span>
-          <select id="calib-agent-provider-skill_selector" class="calib-input" style="flex:1;font-size:10px;" onchange="updateAgentModels('skill_selector')">
-            <option value="gemma4">Gemma 4</option>
-            <option value="qwen">Qwen</option>
-            <option value="gemini">Gemini</option>
-          </select>
-          <select id="calib-agent-model-skill_selector" class="calib-input" style="flex:1.5;font-size:10px;">
-          </select>
-        </div>
-
-        <!-- Knowledge Search -->
-        <div class="calib-row" style="display:flex;gap:8px;align-items:center;">
-          <span class="calib-label" style="min-width:120px;">🔍 Knowledge Search</span>
-          <select id="calib-agent-provider-knowledge_search" class="calib-input" style="flex:1;font-size:10px;" onchange="updateAgentModels('knowledge_search')">
-            <option value="gemma4">Gemma 4</option>
-            <option value="qwen">Qwen</option>
-            <option value="gemini">Gemini</option>
-          </select>
-          <select id="calib-agent-model-knowledge_search" class="calib-input" style="flex:1.5;font-size:10px;">
-          </select>
-        </div>
+        {% set _agents = [
+          ('macro_expert',      '📊 Macro Expert'),
+          ('tech_orchestrator', '🔄 Orchestrator'),
+          ('tech_specialists',  '🧠 Specialists'),
+          ('skill_selector',    '⚙️ Skill Selector'),
+          ('knowledge_search',  '🔍 Knowledge Search'),
+        ] %}
+        {% for agent_key, agent_label in _agents %}
+          {% set _acfg = config_calibrazione.AGENT_LLM_CONFIG.get(agent_key, {}) %}
+          {% set _aprov = _acfg.get('provider', 'gemma4') %}
+          {% set _amodel = _acfg.get('model', '') %}
+          <div class="calib-row" style="display:flex;gap:8px;align-items:center;">
+            <span class="calib-label" style="min-width:120px;">{{ agent_label }}</span>
+            <select id="calib-agent-provider-{{ agent_key }}" class="calib-input" style="flex:1;font-size:10px;" onchange="updateAgentModels('{{ agent_key }}')">
+              <option value="gemma4" {% if _aprov == 'gemma4' %}selected{% endif %}>Gemma 4</option>
+              <option value="qwen"   {% if _aprov == 'qwen'   %}selected{% endif %}>Qwen</option>
+              <option value="gemini" {% if _aprov == 'gemini' %}selected{% endif %}>Gemini</option>
+            </select>
+            <select id="calib-agent-model-{{ agent_key }}" class="calib-input" style="flex:1.5;font-size:10px;">
+              {% for _m in config_calibrazione.AVAILABLE_MODELS.get(_aprov, []) %}
+              <option value="{{ _m }}" {% if _m == _amodel %}selected{% endif %}>{{ _m }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endfor %}
 
         <!-- Qwen 3 — Thinking Mode -->
         <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin:10px 0 6px">Qwen 3 — Thinking Mode</div>

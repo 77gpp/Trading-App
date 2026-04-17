@@ -18,7 +18,7 @@ def get_model(model_id=None, temperature=None, agent_name=None):
     if agent_name and hasattr(Calibrazione, 'AGENT_LLM_CONFIG'):
         cfg = Calibrazione.AGENT_LLM_CONFIG.get(agent_name, {})
         provider = cfg.get("provider", Calibrazione.LLM_PROVIDER).lower()
-        model_id = model_id or cfg.get("model")
+        model_id = cfg.get("model") or model_id
     else:
         provider = Calibrazione.LLM_PROVIDER.lower()
 
@@ -32,7 +32,12 @@ def get_model(model_id=None, temperature=None, agent_name=None):
         )
 
     elif provider == "qwen":
-        model_name = model_id or Calibrazione.MODEL_TECH_SPECIALISTS
+        available_qwen = getattr(Calibrazione, 'AVAILABLE_MODELS', {}).get('qwen', ["llama-3.3-70b-versatile"])
+        # Se model_id non è compatibile con Groq (es. "gemma4"), usa il primo modello Groq disponibile
+        if model_id and model_id in available_qwen:
+            model_name = model_id
+        else:
+            model_name = available_qwen[0]
         extra_params = {}
         if "qwen3" in model_name.lower() and not Calibrazione.QWEN_THINKING_ENABLED:
             extra_params["request_params"] = {"enable_thinking": False}
@@ -44,7 +49,11 @@ def get_model(model_id=None, temperature=None, agent_name=None):
         )
 
     elif provider == "gemini":
-        model_name = model_id or Calibrazione.MODEL_TECH_SPECIALISTS
+        available_gemini = getattr(Calibrazione, 'AVAILABLE_MODELS', {}).get('gemini', ["gemini-2.0-flash"])
+        if model_id and model_id in available_gemini:
+            model_name = model_id
+        else:
+            model_name = available_gemini[0]
         return Gemini(id=model_name, api_key=Calibrazione.GEMINI_API_KEY, temperature=temperature)
 
     else:

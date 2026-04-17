@@ -12,6 +12,7 @@ Un dizionario in memoria (JOBS) mantiene lo stato di ogni analisi avviata.
 
 import sys
 import os
+import re
 import uuid
 import threading
 import json
@@ -340,33 +341,87 @@ def _run_analysis_thread(job_id: str, symbol: str, start: str, end: str,
         JOBS[job_id].update({"status": "error", "error": str(e)})
 
 
+_AGENT_MODEL_MAP = {
+    "macro_expert":      "MODEL_MACRO_EXPERT",
+    "tech_orchestrator": "MODEL_TECH_ORCHESTRATOR",
+    "tech_specialists":  "MODEL_TECH_SPECIALISTS",
+    "skill_selector":    "MODEL_SKILL_SELECTOR",
+    "knowledge_search":  "MODEL_KNOWLEDGE_SEARCH",
+}
+
+_CALIB_SCALAR_MAP = {
+    "LLM_PROVIDER":              "LLM_PROVIDER",
+    "QWEN_THINKING_ENABLED":     "QWEN_THINKING_ENABLED",
+    "DEFAULT_PROJECTION_DAYS":   "DEFAULT_PROJECTION_DAYS",
+    "ALPACA_NEWS_LIMIT":         "ALPACA_NEWS_LIMIT",
+    "DUCKDUCKGO_NEWS_LIMIT":     "DUCKDUCKGO_NEWS_LIMIT",
+    "AGENT_MACRO_ENABLED":       "AGENT_MACRO_ENABLED",
+    "AGENT_PATTERN_ENABLED":     "AGENT_PATTERN_ENABLED",
+    "AGENT_TREND_ENABLED":       "AGENT_TREND_ENABLED",
+    "AGENT_SR_ENABLED":          "AGENT_SR_ENABLED",
+    "AGENT_VOLUME_ENABLED":      "AGENT_VOLUME_ENABLED",
+    "TEMPERATURE_KNOWLEDGE_SEARCH":  "TEMPERATURE_KNOWLEDGE_SEARCH",
+    "TEMPERATURE_MACRO_EXPERT":      "TEMPERATURE_MACRO_EXPERT",
+    "TEMPERATURE_TECH_ORCHESTRATOR": "TEMPERATURE_TECH_ORCHESTRATOR",
+    "TEMPERATURE_TECH_SPECIALISTS":  "TEMPERATURE_TECH_SPECIALISTS",
+    "TEMPERATURE_SKILL_SELECTOR":    "TEMPERATURE_SKILL_SELECTOR",
+}
+
+
+def _save_calibrazione_to_file(override: dict):
+    """Persiste i parametri dell'override in Calibrazione.py."""
+    calib_path = os.path.join(ROOT_DIR, "Calibrazione.py")
+    try:
+        with open(calib_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        def _replace_var(text, var_name, value):
+            if isinstance(value, str):
+                new_val = f'"{value}"'
+            elif isinstance(value, bool):
+                new_val = str(value)
+            elif isinstance(value, float):
+                new_val = str(value)
+            else:
+                new_val = str(value)
+            pattern = rf'^({re.escape(var_name)}\s*=\s*)[^#\n]*(#[^\n]*)?$'
+            def _sub(m):
+                comment = (m.group(2) or "").strip()
+                return f'{m.group(1)}{new_val}  {comment}'.rstrip() if comment else f'{m.group(1)}{new_val}'
+            return re.sub(pattern, _sub, text, flags=re.MULTILINE)
+
+        for ui_key, cal_key in _CALIB_SCALAR_MAP.items():
+            if ui_key in override:
+                content = _replace_var(content, cal_key, override[ui_key])
+
+        agent_llm = override.get("AGENT_LLM_CONFIG", {})
+        for agent_key, cal_key in _AGENT_MODEL_MAP.items():
+            model = (agent_llm.get(agent_key) or {}).get("model", "")
+            if model:
+                content = _replace_var(content, cal_key, model)
+
+        with open(calib_path, "w", encoding="utf-8") as f:
+            f.write(content)
+    except Exception as e:
+        logger.warning(f"[CALIBRAZIONE] Impossibile salvare su file: {e}")
+
+
 def _apply_calibrazione_override(override: dict):
-    """Sovrascrive temporaneamente i parametri di Calibrazione con quelli dell'UI."""
+    """Aggiorna i parametri di Calibrazione in memoria e li persiste su file."""
     import Calibrazione
-    mapping = {
-        "LLM_PROVIDER":                  "LLM_PROVIDER",
-        "QWEN_THINKING_ENABLED":         "QWEN_THINKING_ENABLED",
-        "DEFAULT_PROJECTION_DAYS":       "DEFAULT_PROJECTION_DAYS",
-        "ALPACA_NEWS_LIMIT":             "ALPACA_NEWS_LIMIT",
-        "DUCKDUCKGO_NEWS_LIMIT":         "DUCKDUCKGO_NEWS_LIMIT",
-        "AGENT_MACRO_ENABLED":           "AGENT_MACRO_ENABLED",
-        "AGENT_PATTERN_ENABLED":         "AGENT_PATTERN_ENABLED",
-        "AGENT_TREND_ENABLED":           "AGENT_TREND_ENABLED",
-        "AGENT_SR_ENABLED":              "AGENT_SR_ENABLED",
-        "AGENT_VOLUME_ENABLED":          "AGENT_VOLUME_ENABLED",
-        "TEMPERATURE_KNOWLEDGE_SEARCH":      "TEMPERATURE_KNOWLEDGE_SEARCH",
-        "TEMPERATURE_MACRO_EXPERT":          "TEMPERATURE_MACRO_EXPERT",
-        "TEMPERATURE_TECH_ORCHESTRATOR":     "TEMPERATURE_TECH_ORCHESTRATOR",
-        "TEMPERATURE_TECH_SPECIALISTS":      "TEMPERATURE_TECH_SPECIALISTS",
-        "TEMPERATURE_SKILL_SELECTOR":        "TEMPERATURE_SKILL_SELECTOR",
-    }
-    for ui_key, cal_key in mapping.items():
+    for ui_key, cal_key in _CALIB_SCALAR_MAP.items():
         if ui_key in override:
             setattr(Calibrazione, cal_key, override[ui_key])
 
-    # Gestione configurazione LLM per-agente
+    # Configurazione LLM per-agente: aggiorna AGENT_LLM_CONFIG e MODEL_* in sync
     if "AGENT_LLM_CONFIG" in override:
         setattr(Calibrazione, "AGENT_LLM_CONFIG", override["AGENT_LLM_CONFIG"])
+        for agent_key, cal_key in _AGENT_MODEL_MAP.items():
+            model = (override["AGENT_LLM_CONFIG"].get(agent_key) or {}).get("model", "")
+            if model:
+                setattr(Calibrazione, cal_key, model)
+
+    _save_calibrazione_to_file(override)
 
 
 def _compute_projection(df_1d, days: int,
