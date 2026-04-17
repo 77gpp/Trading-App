@@ -14,7 +14,8 @@
 │  MACRO EXPERT   │ │ SKILL SELECTOR  │  │ CONTEXT EXPANDER │  │  TECHNICAL DESK      │
 │ AgnoMacroExpert │ │  SkillSelector  │  │ContextExpander   │  │  (4 specialisti)     │
 │                 │ │                 │  │      Agent       │  │                      │
-│ Modello: Qwen   │ │ Modello: Llama  │  │ Modello: Gemini  │  │ Modello: Qwen        │
+│ Modello: *      │ │ Modello: *      │  │ Modello: *       │  │ Modello: *           │
+│ (selezionabile) │ │ (selezionabile) │  │ (selezionabile)  │  │ (selezionabile)      │
 │ Temp: 0.7       │ │ Temp: 0.0       │  │ Temp: 0.0        │  │ Temp: 0.7            │
 │                 │ │                 │  │                  │  │                      │
 │ Tools:          │ │ Input:          │  │ Input:           │  ├──────────────────────┤
@@ -40,6 +41,10 @@
          └──────────────────────────────────────────────────── │ (FILTRO FINALE)      │
                                                                 └──────────────────────┘
 ```
+
+> **Nota sulla selezione dei modelli**: Tutti gli agenti usano modelli configurabili tramite `Calibrazione.py`.
+> Con `LLM_PROVIDER = "gemma4"` (default), tutti gli agenti usano Gemma 4 locale su `http://localhost:8080`.
+> Con `LLM_PROVIDER = "qwen"` o `"gemini"`, usano i modelli remoti specificati in `Calibrazione.py`.
 
 ---
 
@@ -135,7 +140,7 @@ SupervisorAgent.analizza_asset()
 | `agents/agno_macro_expert.py` | `AgnoMacroExpert` | **Doppio ruolo**: (1) analisi macroeconomica globale con DuckDuckGo + Alpaca + YFinance + Skill macro; (2) sintesi del verdetto finale con Skill trading-verdict-synthesizer |
 | `agents/context_expander_agent.py` | `ContextExpanderAgent` | Ricerca semantica nei PDF dei libri via Gemini File API |
 | `agents/skill_selector.py` | `SkillSelector` | Sceglie gli strumenti tecnici più adatti al contesto. Produce `chosen_tools` e `skills_guidance` |
-| `agents/model_factory.py` | `get_model()` | Factory unica per istanziare LLM (Groq/Qwen o Gemini). Gestisce il thinking mode Qwen3 |
+| `agents/model_factory.py` | `get_model()` | Factory unica per istanziare LLM (Gemma 4 locale, Groq/Qwen, o Gemini). Configurabile da `Calibrazione.LLM_PROVIDER` |
 | `agents/agno_technical_team.py` | — | Mantiene `_rimuovi_intro_inglese()` (helper post-processing). Il Team inline non è più usato dal Supervisor |
 | `agents/alpaca_news_tool.py` | `get_alpaca_news()` | Tool custom per l'API Alpaca Markets (notizie istituzionali) |
 
@@ -257,7 +262,7 @@ Questo è il meccanismo che connette la selezione AI degli strumenti con l'effet
 Tutti i parametri di sistema si trovano in un unico file. Non esistono valori hardcoded negli agenti.
 
 ```
-LLM_PROVIDER              → 'qwen' (Groq) o 'gemini'
+LLM_PROVIDER              → 'gemma4' (locale), 'qwen' (Groq), o 'gemini' (Google)
 QWEN_THINKING_ENABLED     → True = thinking mode attivo (più lento, più profondo)
                             False = risposta diretta (più veloce, no preamble inglese)
 

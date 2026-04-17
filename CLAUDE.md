@@ -24,22 +24,27 @@ python3 agents/supervisor_agent.py
 pip install -r requirements.txt
 ```
 
+**Note:** The `openai` package is required for local Gemma 4 support (OpenAI-compatible API). It's included in `requirements.txt`.
+
 ## Environment Variables
 
-Create a `.env` file in the project root with:
+Create a `.env` file in the project root with (only needed for remote providers):
 ```
-GEMINI_API_KEY=      # Google Gemini (knowledge/book search via ContextExpanderAgent)
-GROQ_API_KEY=        # Groq LPU (Qwen inference for all analysis agents)
+GEMINI_API_KEY=      # Google Gemini (knowledge/book search via ContextExpanderAgent) — optional if using gemma4
+GROQ_API_KEY=        # Groq LPU (Qwen inference for all analysis agents) — optional if using gemma4
 ALPACA_API_KEY=      # Alpaca Markets (live news feed)
 ALPACA_SECRET_KEY=   # Alpaca authentication
 ```
+
+**Note:** When `LLM_PROVIDER = "gemma4"`, no API keys are needed—Gemma 4 runs locally on `http://localhost:8080`.
 
 ## Central Configuration: `Calibrazione.py`
 
 **All system behavior is controlled from this single file.** Never hardcode model names, paths, or flags elsewhere.
 
 Key controls:
-- `LLM_PROVIDER`: `'qwen'` (Groq) or `'gemini'`
+- `LLM_PROVIDER`: `'gemma4'` (local Gemma 4 on localhost:8080), `'qwen'` (Groq), or `'gemini'` (Google)
+- `GEMMA4_BASE_URL`: Endpoint for local Gemma 4 (`http://localhost:8080/v1` by default)
 - `MODEL_*`: Model ID per role (macro expert, tech orchestrator, specialists, skill selector)
 - `AGENT_*_ENABLED`: Boolean flags to activate/deactivate each specialist agent
 - `TECH_*_CANDLES`: Number of candles fed to technical agents per timeframe
@@ -78,7 +83,7 @@ Each subfolder is an Agno-format skill: must contain a `SKILL.md` file with Agno
 
 ### Model routing (`agents/model_factory.py`)
 
-Always use `get_model(model_id, temperature=...)` to instantiate models. This factory handles the `LLM_PROVIDER` switch between Gemini and Groq/Qwen transparently.
+Always use `get_model(model_id, temperature=...)` to instantiate models. This factory handles the `LLM_PROVIDER` switch between Gemma 4 (local), Groq/Qwen, and Gemini transparently.
 
 ### Web Frontend (`frontend/`)
 

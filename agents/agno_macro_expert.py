@@ -34,7 +34,7 @@ class AgnoMacroExpert:
         macro_skill_dir = Calibrazione.MACRO_SKILL_DIR
         
         # Otteniamo il modello (Groq/Qwen o Gemini)
-        llm_model = get_model(self.model_id, temperature=Calibrazione.TEMPERATURE_MACRO_EXPERT)
+        llm_model = get_model(self.model_id, temperature=Calibrazione.TEMPERATURE_MACRO_EXPERT, agent_name="macro_expert")
         
         # Percorso della Skill per il verdetto finale
         verdict_skill_dir = Calibrazione.VERDICT_SKILL_DIR

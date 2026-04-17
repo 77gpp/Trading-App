@@ -717,6 +717,32 @@ function updateTickerBadge(ticker) {
 
 // -------------------------------------------------------
 // CARICAMENTO CALIBRAZIONE DAL BACKEND
+// Popola i dropdown provider/model per un agente
+function setAgentProvider(agentName, provider, currentModel) {
+  const providerEl = document.getElementById(`calib-agent-provider-${agentName}`);
+  const modelEl    = document.getElementById(`calib-agent-model-${agentName}`);
+  if (!providerEl || !modelEl) return;
+
+  providerEl.value = provider;
+  const models = (window._availableModels || {})[provider] || [];
+  modelEl.innerHTML = models.map(m =>
+    `<option value="${m}" ${m === currentModel ? 'selected' : ''}>${m}</option>`
+  ).join('');
+}
+
+// Aggiorna i modelli disponibili quando cambia il provider
+function updateAgentModels(agentName) {
+  const providerEl = document.getElementById(`calib-agent-provider-${agentName}`);
+  if (!providerEl) return;
+  const provider = providerEl.value;
+  const models = (window._availableModels || {})[provider] || [];
+  const modelEl = document.getElementById(`calib-agent-model-${agentName}`);
+  if (modelEl) {
+    modelEl.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
+    if (models.length > 0) modelEl.value = models[0];
+  }
+}
+
 // -------------------------------------------------------
 async function loadCalibrazioneFromBackend() {
   try {
@@ -737,6 +763,14 @@ async function loadCalibrazioneFromBackend() {
         el.value = val;
       }
     });
+
+    // Carica il catalogo dei modelli disponibili e popola i dropdown per-agente
+    if (data.AVAILABLE_MODELS && data.AGENT_LLM_CONFIG) {
+      window._availableModels = data.AVAILABLE_MODELS;
+      Object.entries(data.AGENT_LLM_CONFIG).forEach(([agentName, cfg]) => {
+        setAgentProvider(agentName, cfg.provider, cfg.model);
+      });
+    }
   } catch (e) {
     console.warn('[APP] Impossibile caricare calibrazione:', e);
   }
@@ -767,6 +801,17 @@ function getCalibrazione() {
       calib[key] = el.value;
     }
   });
+
+  // Raccogliere configurazione LLM per-agente
+  const agentNames = ['macro_expert', 'tech_orchestrator', 'tech_specialists', 'skill_selector', 'knowledge_search'];
+  const agentLlmConfig = {};
+  agentNames.forEach(name => {
+    agentLlmConfig[name] = {
+      provider: document.getElementById(`calib-agent-provider-${name}`)?.value,
+      model:    document.getElementById(`calib-agent-model-${name}`)?.value,
+    };
+  });
+  calib.AGENT_LLM_CONFIG = agentLlmConfig;
 
   return calib;
 }

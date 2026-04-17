@@ -3,19 +3,33 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- PROVIDER SELEZIONATO (Scegli tra 'gemini' o 'qwen') ---
-LLM_PROVIDER = "qwen" 
+# --- PROVIDER SELEZIONATO (Scegli tra 'gemma4', 'qwen' o 'gemini') ---
+# 'gemma4'  = Gemma 4 locale su http://localhost:8080 (default, nessuna API key richiesta)
+# 'qwen'    = Qwen 3 su Groq via API
+# 'gemini'  = Google Gemini via API
+LLM_PROVIDER = "gemma4" 
 
 # --- CONFIGURAZIONE MODELLI ---
-# Gemini si occupa della ricerca intelligente nei libri (Agentic Search)
-MODEL_KNOWLEDGE_SEARCH = "gemini-2.0-flash"
+# Per Gemma 4 locale (tutti gli agent usano lo stesso modello)
+GEMMA4_BASE_URL = "http://localhost:8080/v1"
+MODEL_GEMMA4 = "gemma4"  # Nome del modello servito da localhost:8080
 
-# Qwen su Groq si occupa dell'analisi e del ragionamento
-MODEL_MACRO_EXPERT = "qwen/qwen3-32b"
-MODEL_TECH_ORCHESTRATOR = "qwen/qwen3-32b"
-MODEL_TECH_SPECIALISTS = "qwen/qwen3-32b"
-# Modello per Skill Selector: senza thinking mode, ottimizzato per output JSON puro
-MODEL_SKILL_SELECTOR = "llama-3.3-70b-versatile"
+# Modelli per il provider attivo (LLM_PROVIDER in Calibrazione.py)
+# Default: Gemma 4 locale su http://localhost:8080
+MODEL_MACRO_EXPERT = MODEL_GEMMA4
+MODEL_TECH_ORCHESTRATOR = MODEL_GEMMA4
+MODEL_TECH_SPECIALISTS = MODEL_GEMMA4
+MODEL_SKILL_SELECTOR = MODEL_GEMMA4
+MODEL_KNOWLEDGE_SEARCH = "gemini-2.0-flash"  # Ricerca intelligente nei libri (Agentic Search)
+
+# --- MODELLI ALTERNATIVI (remoti) ---
+# Se vuoi usare provider remoti, commenta MODEL_* sopra e decommentali qui
+# Qwen 3 su Groq
+# MODEL_MACRO_EXPERT = "qwen/qwen3-32b"
+# MODEL_TECH_ORCHESTRATOR = "qwen/qwen3-32b"
+# MODEL_TECH_SPECIALISTS = "qwen/qwen3-32b"
+# MODEL_SKILL_SELECTOR = "llama-3.3-70b-versatile"
+# MODEL_KNOWLEDGE_SEARCH = "gemini-2.0-flash"
 
 # --- THINKING MODE (solo per modelli Qwen 3 su Groq) ---
 # True  = il modello ragiona in profondità prima di rispondere (più lento, analisi più ricca)
@@ -80,3 +94,19 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 ALPACA_API_KEY = os.getenv("ALPACA_API_KEY")
 ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
+
+# --- CATALOGO MODELLI DISPONIBILI (per il frontend) ---
+AVAILABLE_MODELS = {
+    "gemma4":  ["gemma4"],
+    "qwen":    ["qwen/qwen3-32b", "qwen/qwen3-8b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"],
+    "gemini":  ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+}
+
+# --- CONFIGURAZIONE LLM PER-AGENTE ---
+AGENT_LLM_CONFIG = {
+    "macro_expert":      {"provider": LLM_PROVIDER, "model": MODEL_MACRO_EXPERT},
+    "tech_orchestrator": {"provider": LLM_PROVIDER, "model": MODEL_TECH_ORCHESTRATOR},
+    "tech_specialists":  {"provider": LLM_PROVIDER, "model": MODEL_TECH_SPECIALISTS},
+    "skill_selector":    {"provider": LLM_PROVIDER, "model": MODEL_SKILL_SELECTOR},
+    "knowledge_search":  {"provider": "gemini",     "model": MODEL_KNOWLEDGE_SEARCH},
+}

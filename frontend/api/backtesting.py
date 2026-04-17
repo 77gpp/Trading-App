@@ -49,7 +49,7 @@ def run_backtest():
         "projection_days":  Calibrazione.DEFAULT_PROJECTION_DAYS,
         "interval":         "1d",
         "calibrazione": {
-          "LLM_PROVIDER":            "qwen",
+          "LLM_PROVIDER":            "gemma4",
           "MACRO_ANALYSIS_DAYS":     10,
           "ALPACA_NEWS_LIMIT":       15,
           "DUCKDUCKGO_NEWS_LIMIT":   10,
@@ -363,6 +363,10 @@ def _apply_calibrazione_override(override: dict):
     for ui_key, cal_key in mapping.items():
         if ui_key in override:
             setattr(Calibrazione, cal_key, override[ui_key])
+
+    # Gestione configurazione LLM per-agente
+    if "AGENT_LLM_CONFIG" in override:
+        setattr(Calibrazione, "AGENT_LLM_CONFIG", override["AGENT_LLM_CONFIG"])
 
 
 def _compute_projection(df_1d, days: int,

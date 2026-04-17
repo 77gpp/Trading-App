@@ -34,7 +34,7 @@ class VolumeAgent:
         logger.info("[VOLUME AGENT] Inizializzazione...")
 
         # --- 1. Modello AI ---
-        llm = get_model(Calibrazione.MODEL_TECH_SPECIALISTS, temperature=Calibrazione.TEMPERATURE_TECH_SPECIALISTS)
+        llm = get_model(Calibrazione.MODEL_TECH_SPECIALISTS, temperature=Calibrazione.TEMPERATURE_TECH_SPECIALISTS, agent_name="tech_specialists")
 
         # --- 2. Storage locale opzionale ---
         storage = None

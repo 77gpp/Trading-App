@@ -90,8 +90,8 @@ class AgnoTechnicalTeam:
         from agents.model_factory import get_model
         
         # Carichiamo i modelli tramite factory (Qwen/Groq o Gemini)
-        llm_specialists = get_model(self.model_specialists, temperature=Calibrazione.TEMPERATURE_TECH_SPECIALISTS)
-        llm_desk = get_model(self.model_desk, temperature=Calibrazione.TEMPERATURE_TECH_ORCHESTRATOR)
+        llm_specialists = get_model(self.model_specialists, temperature=Calibrazione.TEMPERATURE_TECH_SPECIALISTS, agent_name="tech_specialists")
+        llm_desk = get_model(self.model_desk, temperature=Calibrazione.TEMPERATURE_TECH_ORCHESTRATOR, agent_name="tech_orchestrator")
         
         LINGUA = (
             "LINGUA OBBLIGATORIA: Italiano. "

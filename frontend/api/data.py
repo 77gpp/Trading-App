@@ -411,6 +411,7 @@ def get_calibrazione():
         import Calibrazione
         return jsonify({
             "LLM_PROVIDER":             Calibrazione.LLM_PROVIDER,
+            "QWEN_THINKING_ENABLED":    Calibrazione.QWEN_THINKING_ENABLED,
             "DEFAULT_PROJECTION_DAYS":  Calibrazione.DEFAULT_PROJECTION_DAYS,
             "ALPACA_NEWS_LIMIT":        Calibrazione.ALPACA_NEWS_LIMIT,
             "DUCKDUCKGO_NEWS_LIMIT":    Calibrazione.DUCKDUCKGO_NEWS_LIMIT,
@@ -419,6 +420,13 @@ def get_calibrazione():
             "AGENT_TREND_ENABLED":      Calibrazione.AGENT_TREND_ENABLED,
             "AGENT_SR_ENABLED":         Calibrazione.AGENT_SR_ENABLED,
             "AGENT_VOLUME_ENABLED":     Calibrazione.AGENT_VOLUME_ENABLED,
+            "TEMPERATURE_KNOWLEDGE_SEARCH":  Calibrazione.TEMPERATURE_KNOWLEDGE_SEARCH,
+            "TEMPERATURE_MACRO_EXPERT":     Calibrazione.TEMPERATURE_MACRO_EXPERT,
+            "TEMPERATURE_TECH_ORCHESTRATOR": Calibrazione.TEMPERATURE_TECH_ORCHESTRATOR,
+            "TEMPERATURE_TECH_SPECIALISTS":  Calibrazione.TEMPERATURE_TECH_SPECIALISTS,
+            "TEMPERATURE_SKILL_SELECTOR":    Calibrazione.TEMPERATURE_SKILL_SELECTOR,
+            "AVAILABLE_MODELS":         Calibrazione.AVAILABLE_MODELS,
+            "AGENT_LLM_CONFIG":         Calibrazione.AGENT_LLM_CONFIG,
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500

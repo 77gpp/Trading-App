@@ -993,7 +993,8 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             from agno.agent import Agent
             llm = get_model(
                 Calibrazione.MODEL_SKILL_SELECTOR,
-                temperature=Calibrazione.TEMPERATURE_SKILL_SELECTOR
+                temperature=Calibrazione.TEMPERATURE_SKILL_SELECTOR,
+                agent_name="skill_selector"
             )
             selector_agent = Agent(
                 model=llm,

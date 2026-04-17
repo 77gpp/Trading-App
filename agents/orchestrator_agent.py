@@ -27,7 +27,7 @@ class OrchestratorAgent:
     
     def __init__(self, api_key=None):
         # Usiamo il model_factory per ottenere il modello corretto (Qwen o Gemini)
-        self.model = get_model(Calibrazione.MODEL_TECH_ORCHESTRATOR, temperature=Calibrazione.TEMPERATURE_TECH_ORCHESTRATOR)
+        self.model = get_model(Calibrazione.MODEL_TECH_ORCHESTRATOR, temperature=Calibrazione.TEMPERATURE_TECH_ORCHESTRATOR, agent_name="tech_orchestrator")
         
         # Inizializziamo l'Agente Agno per il routing
         self.router_agent = Agent(

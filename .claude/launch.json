@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Web UI (Backtesting)",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["frontend/app_web.py"],
+      "port": 5001
+    },
+    {
+      "name": "CLI Analysis",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["app.py"],
+      "port": null
+    },
+    {
+      "name": "Single Agent Test",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["agents/supervisor_agent.py"],
+      "port": null
+    }
+  ]
+}
